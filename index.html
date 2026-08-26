@@ -1,0 +1,2922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<meta name="description" content="SINGLE SHOT — a first-person 3D horror roguelike RPG. Your revolver holds one bullet. Descend the Hollow Choir. Guard the flame. Nothing down here stays dead.">
+<title>SINGLE SHOT — Descent of the Hollow Choir</title>
+<style>
+/* ============================================================= *
+ *  SINGLE SHOT — interface stylesheet
+ *  System font stacks only; zero network requests.
+ * ============================================================= */
+:root{
+  --ink:#0a0b0f; --void:#04050a; --bone:#d8d1c2; --bone-dim:#8a8478;
+  --parch:#c9bfa6; --blood:#8e1c1c; --blood-lit:#c93636;
+  --ember:#d98b3a; --ember-lit:#f0b25e; --rot:#6d8a52; --sane:#5f7fa8;
+  --gold:#c8a95a; --violet:#7a5f9e; --cyan:#4f8f9e;
+  --ui-edge:rgba(216,209,194,.18); --ui-edge-hot:rgba(216,209,194,.42);
+  --panel:rgba(8,9,13,.90); --shadow:0 18px 60px rgba(0,0,0,.85);
+  --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,"Times New Roman",serif;
+  --sans:"Avenir Next","Helvetica Neue",Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--bone)}
+body{font-family:var(--sans);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;user-select:none;-webkit-user-select:none;cursor:default;touch-action:none}
+#app{position:fixed;inset:0;overflow:hidden;background:#000;isolation:isolate}
+canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
+#gl{z-index:1}
+#fx{z-index:2;pointer-events:none}
+
+.hidden{display:none!important}
+.caps{text-transform:uppercase;letter-spacing:.22em}
+.mono{font-family:var(--mono)}
+.skill .ico,.slot .g,.eqslot .g,.statrow .v{font-variant-emoji:text;-webkit-font-variant-emoji:text}
+.serif{font-family:var(--serif)}
+.dim{color:var(--bone-dim)}
+.tiny{font-size:11px}
+.sm{font-size:13px}
+.center{text-align:center}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column}
+.grow{flex:1}
+.sep{height:1px;background:var(--ui-edge);margin:14px 0}
+.scroll{overflow-y:auto;overscroll-behavior:contain}
+.scroll::-webkit-scrollbar{width:9px}
+.scroll::-webkit-scrollbar-track{background:rgba(0,0,0,.35)}
+.scroll::-webkit-scrollbar-thumb{background:rgba(216,209,194,.20);border:2px solid transparent;background-clip:padding-box}
+.scroll::-webkit-scrollbar-thumb:hover{background:rgba(216,209,194,.38);background-clip:padding-box}
+
+/* ---------- screens ---------- */
+#screens{position:absolute;inset:0;z-index:40;pointer-events:none}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:auto;background:radial-gradient(ellipse 120% 90% at 50% 45%,rgba(6,7,10,.78) 0%,rgba(3,3,5,.97) 72%);
+  backdrop-filter:blur(7px) saturate(.55);-webkit-backdrop-filter:blur(7px) saturate(.55);
+  animation:screenIn .34s cubic-bezier(.16,.8,.3,1) both}
+@keyframes screenIn{from{opacity:0}to{opacity:1}}
+.screen.bare{background:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.panel{background:var(--panel);border:1px solid var(--ui-edge);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.045);
+  padding:26px 30px;position:relative;max-width:640px;width:92%}
+.panel::before,.panel::after{content:"";position:absolute;width:11px;height:11px;border:1px solid var(--ui-edge-hot);pointer-events:none}
+.panel::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.panel::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+h1,h2,h3{font-family:var(--serif);font-weight:400}
+.title{font-size:52px;letter-spacing:.06em;line-height:1;color:var(--bone);text-shadow:0 0 24px rgba(217,139,58,.35)}
+.title .accent{color:var(--ember-lit)}
+.subtitle{font-size:14px;letter-spacing:.34em;text-transform:uppercase;color:var(--bone-dim);margin-top:10px}
+.btn{font-family:var(--sans);font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone);
+  background:linear-gradient(180deg,rgba(216,209,194,.10),rgba(216,209,194,.03));border:1px solid var(--ui-edge);
+  padding:12px 22px;cursor:pointer;transition:all .16s ease;position:relative}
+.btn:hover{border-color:var(--ui-edge-hot);color:#fff;background:linear-gradient(180deg,rgba(217,139,58,.22),rgba(217,139,58,.05));
+  box-shadow:0 0 22px rgba(217,139,58,.25)}
+.btn.primary{border-color:rgba(217,139,58,.5);color:var(--ember-lit)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.key{display:inline-block;min-width:22px;text-align:center;padding:2px 7px;border:1px solid var(--ui-edge);
+  border-radius:4px;background:rgba(0,0,0,.4);font-family:var(--mono);font-size:12px;color:var(--parch)}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;inset:0;z-index:30;pointer-events:none}
+#hud .vignette{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 75% 65% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%)}
+#crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);pointer-events:none}
+#crosshair .dot{position:absolute;left:50%;top:50%;width:3px;height:3px;background:rgba(216,209,194,.9);transform:translate(-50%,-50%);border-radius:50%}
+#crosshair .tick{position:absolute;background:rgba(216,209,194,.55)}
+#crosshair .t{left:50%;top:0;width:1px;height:6px;transform:translateX(-50%)}
+#crosshair .b{left:50%;bottom:0;width:1px;height:6px;transform:translateX(-50%)}
+#crosshair .l{top:50%;left:0;height:1px;width:6px;transform:translateY(-50%)}
+#crosshair .r{top:50%;right:0;height:1px;width:6px;transform:translateY(-50%)}
+#crosshair.hit .dot{background:var(--blood-lit);box-shadow:0 0 8px var(--blood-lit)}
+#hitmarker{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%) rotate(45deg);opacity:0;pointer-events:none}
+#hitmarker span{position:absolute;background:var(--blood-lit)}
+#hitmarker .h1{left:50%;top:0;width:2px;height:9px;transform:translateX(-50%)}
+#hitmarker .h2{left:50%;bottom:0;width:2px;height:9px;transform:translateX(-50%)}
+#hitmarker .h3{top:50%;left:0;height:2px;width:9px;transform:translateY(-50%)}
+#hitmarker .h4{top:50%;right:0;height:2px;width:9px;transform:translateY(-50%)}
+
+/* bottom-left vitals */
+#vitals{position:absolute;left:22px;bottom:20px;width:300px;pointer-events:none}
+.bar{position:relative;height:16px;background:rgba(0,0,0,.55);border:1px solid var(--ui-edge);margin-bottom:8px;overflow:hidden}
+.bar .fill{position:absolute;inset:0;transform-origin:left center;transition:transform .12s linear}
+.bar .lbl{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;z-index:2}
+.bar .val{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:#fff;z-index:2}
+#hpfill{background:linear-gradient(90deg,#5a1414,var(--blood-lit))}
+#sanefill{background:linear-gradient(90deg,#1e3a52,var(--sane))}
+#stafill{background:linear-gradient(90deg,#3a4a2a,var(--rot))}
+#xpfill{background:linear-gradient(90deg,#5a4a1e,var(--gold))}
+#torchfill{background:linear-gradient(90deg,#5a3a1e,var(--ember-lit))}
+#vitals .rowmeta{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.14em;color:var(--bone-dim);margin-top:2px}
+
+/* bottom-right ammo + skills */
+#combat{position:absolute;right:22px;bottom:20px;display:flex;flex-direction:column;align-items:flex-end;gap:12px;pointer-events:none}
+#ammo{display:flex;align-items:flex-end;gap:10px}
+#ammo .num{font-family:var(--serif);font-size:44px;line-height:.9;color:var(--bone);text-shadow:0 0 18px rgba(217,139,58,.4)}
+#ammo .num.empty{color:var(--blood-lit)}
+#ammo .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);padding-bottom:6px}
+#skills{display:flex;gap:8px}
+.skill{width:52px;height:52px;position:relative;background:rgba(0,0,0,.5);border:1px solid var(--ui-edge);overflow:hidden}
+.skill .ico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--parch)}
+.skill .cd{position:absolute;inset:0;background:rgba(0,0,0,.72);transform-origin:bottom center}
+.skill .k{position:absolute;left:4px;top:2px;font-family:var(--mono);font-size:10px;color:var(--bone-dim)}
+.skill.ready{border-color:rgba(217,139,58,.5)}
+.skill.ready .ico{color:var(--ember-lit);text-shadow:0 0 10px rgba(217,139,58,.6)}
+
+/* top bar */
+#topbar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;
+  padding:16px 20px;pointer-events:none}
+#floorplate{font-family:var(--serif);font-size:15px;letter-spacing:.16em;color:var(--parch)}
+#floorplate .sub{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.24em;color:var(--bone-dim);margin-top:3px}
+#minimap{width:150px;height:150px;background:rgba(0,0,0,.5);border:1px solid var(--ui-edge);image-rendering:pixelated}
+#objective{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-dim);max-width:280px;text-align:right}
+#objective b{color:var(--ember-lit);font-weight:600}
+
+/* floating combat text + toast */
+#toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);font-family:var(--serif);font-size:18px;
+  color:var(--parch);text-shadow:0 2px 8px #000;opacity:0;pointer-events:none;letter-spacing:.04em}
+#dmgwrap{position:absolute;inset:0;pointer-events:none}
+.dmg{position:absolute;font-family:var(--mono);font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 3px #000;
+  transform:translate(-50%,-50%);animation:dmgfloat .8s ease-out forwards}
+.dmg.crit{color:var(--ember-lit);font-size:19px}
+.dmg.melee{color:var(--parch)}
+.dmg.heal{color:#7fd08a}
+@keyframes dmgfloat{0%{opacity:0;transform:translate(-50%,-40%) scale(.7)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%) scale(1)}}
+
+/* damage flash + sanity overlay */
+#flash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 60% 55% at 50% 55%,rgba(140,20,20,.55),rgba(60,0,0,.25) 70%,transparent)}
+#sanityfx{position:absolute;inset:0;pointer-events:none;opacity:0;mix-blend-mode:screen;
+  background:radial-gradient(ellipse 90% 80% at 50% 50%,transparent 40%,rgba(90,40,120,.35) 100%)}
+
+/* modal (inventory / character / help) */
+#modal{position:absolute;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;pointer-events:auto;
+  background:rgba(3,3,5,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#modal .panel{max-width:760px}
+.mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.mhead h2{font-size:24px;letter-spacing:.08em}
+.mclose{cursor:pointer;color:var(--bone-dim);font-size:20px;line-height:1;padding:4px 8px}
+.mclose:hover{color:#fff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.slot{aspect-ratio:1;background:rgba(0,0,0,.4);border:1px solid var(--ui-edge);position:relative;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .12s}
+.slot:hover{border-color:var(--ui-edge-hot)}
+.slot .g{font-size:26px}
+.slot .n{position:absolute;left:6px;bottom:4px;font-size:9px;letter-spacing:.06em;color:var(--bone-dim);max-width:90%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.slot .c{position:absolute;right:5px;top:4px;font-family:var(--mono);font-size:10px;color:var(--parch)}
+.slot.r0{border-color:rgba(216,209,194,.25)}
+.slot.r1{border-color:rgba(122,95,158,.6)}
+.slot.r2{border-color:rgba(79,143,158,.7)}
+.slot.r3{border-color:rgba(200,169,90,.85);box-shadow:0 0 14px rgba(200,169,90,.25)}
+.statrow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(216,209,194,.08);font-size:14px}
+.statrow .v{font-family:var(--mono);color:var(--parch)}
+.statrow .b{color:var(--ember-lit)}
+.equipcol{display:flex;flex-direction:column;gap:8px}
+.eqslot{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.35);border:1px solid var(--ui-edge);padding:10px 12px;cursor:pointer}
+.eqslot:hover{border-color:var(--ui-edge-hot)}
+.eqslot .g{font-size:24px;width:30px;text-align:center}
+.eqslot .info{flex:1}
+.eqslot .info .n{font-size:14px;color:var(--bone)}
+.eqslot .info .s{font-size:11px;color:var(--bone-dim);font-family:var(--mono)}
+
+/* level up */
+#levelup .panel{max-width:420px;text-align:center}
+#levelup .choices{display:flex;gap:12px;margin-top:18px}
+#levelup .choice{flex:1;background:rgba(0,0,0,.4);border:1px solid var(--ui-edge);padding:16px 10px;cursor:pointer;transition:all .14s}
+#levelup .choice:hover{border-color:rgba(217,139,58,.6);background:rgba(217,139,58,.08)}
+#levelup .choice .t{font-family:var(--serif);font-size:16px;color:var(--bone);margin-bottom:6px}
+#levelup .choice .d{font-size:11px;color:var(--bone-dim)}
+
+#errbox{position:absolute;left:10px;bottom:10px;z-index:99;max-width:60%;font-family:var(--mono);font-size:11px;
+  color:#ff8080;background:rgba(40,0,0,.8);padding:6px 10px;border:1px solid rgba(255,80,80,.4);display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="vignette"></div>
+    <div id="crosshair"><div class="dot"></div><div class="tick t"></div><div class="tick b"></div><div class="tick l"></div><div class="tick r"></div></div>
+    <div id="hitmarker"><span class="h1"></span><span class="h2"></span><span class="h3"></span><span class="h4"></span></div>
+    <div id="flash"></div>
+    <div id="sanityfx"></div>
+
+    <div id="topbar">
+      <div id="floorplate">FLOOR I<span class="sub" id="floorsub">The Threshold</span></div>
+      <div id="objective">Descend to the <b>Choir</b></div>
+      <canvas id="minimap" width="150" height="150"></canvas>
+    </div>
+
+    <div id="vitals">
+      <div class="bar"><div class="fill" id="hpfill"></div><div class="lbl">Vigor</div><div class="val" id="hpval">100</div></div>
+      <div class="bar"><div class="fill" id="sanefill"></div><div class="lbl">Sanity</div><div class="val" id="sanval">100</div></div>
+      <div class="bar"><div class="fill" id="stafill"></div><div class="lbl">Stamina</div><div class="val" id="staval">100</div></div>
+      <div class="bar" style="height:8px"><div class="fill" id="xpfill"></div><div class="lbl" style="font-size:8px">Level</div><div class="val" id="xpval">1</div></div>
+      <div class="bar" style="height:8px"><div class="fill" id="torchfill"></div><div class="lbl" style="font-size:8px">Torch</div><div class="val" id="torchval">100</div></div>
+      <div class="rowmeta"><span id="goldval">0 gold</span><span id="seedval"></span></div>
+    </div>
+
+    <div id="combat">
+      <div id="skills">
+        <div class="skill" id="sk0"><div class="k">1</div><div class="ico">⚡</div><div class="cd"></div></div>
+        <div class="skill" id="sk1"><div class="k">2</div><div class="ico">☄</div><div class="cd"></div></div>
+        <div class="skill" id="sk2"><div class="k">3</div><div class="ico">✚</div><div class="cd"></div></div>
+      </div>
+      <div id="ammo"><div class="num" id="ammonum">1</div><div class="lbl">Chamber<br><span id="ammosub">reserve 0</span></div></div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="dmgwrap"></div>
+  </div>
+
+  <!-- Screens -->
+  <div id="screens">
+    <div class="screen" id="title">
+      <div class="col center" style="max-width:560px">
+        <div class="title">SINGLE <span class="accent">SHOT</span></div>
+        <div class="subtitle">Descent of the Hollow Choir</div>
+        <div class="sep"></div>
+        <p class="dim sm" style="max-width:440px;margin:0 auto 6px">Your revolver holds <b style="color:var(--ember-lit)">one bullet</b>. The catacombs below are hungry, and the dark is not empty. Descend five floors, keep your flame alive, and end the Choir before it ends you. Every run is new. Death is final.</p>
+        <div class="row" style="justify-content:center;margin-top:18px;flex-wrap:wrap">
+          <button class="btn primary" id="btnStart">Begin the Descent</button>
+          <button class="btn" id="btnHelp">How to Play</button>
+        </div>
+        <div class="row" style="justify-content:center;margin-top:20px;gap:22px;color:var(--bone-dim);font-size:11px;letter-spacing:.1em">
+          <span><span class="key">WASD</span> move</span>
+          <span><span class="key">LMB</span> shoot</span>
+          <span><span class="key">RMB</span> melee</span>
+          <span><span class="key">R</span> reload</span>
+          <span><span class="key">Shift</span> sprint</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="help">
+      <div class="panel">
+        <div class="mhead"><h2>How to Play</h2><span class="mclose" id="helpClose">✕</span></div>
+        <div class="scroll" style="max-height:60vh">
+          <p class="sm dim" style="margin-bottom:10px">You are the last Warden. The Hollow Choir has taken root in the catacombs. Your single-shot revolver is your only certainty — everything else is faith, steel, and nerve.</p>
+          <div class="statrow"><span>Move / Look</span><span class="v">WASD · Mouse</span></div>
+          <div class="statrow"><span>Fire (single shot)</span><span class="v">Left Mouse</span></div>
+          <div class="statrow"><span>Melee</span><span class="v">Right Mouse</span></div>
+          <div class="statrow"><span>Reload (slow)</span><span class="v">R</span></div>
+          <div class="statrow"><span>Sprint (drains stamina)</span><span class="v">Shift</span></div>
+          <div class="statrow"><span>Skills</span><span class="v">1 · 2 · 3</span></div>
+          <div class="statrow"><span>Inventory / Character</span><span class="v">I · C</span></div>
+          <div class="statrow"><span>Pause</span><span class="v">Esc / P</span></div>
+          <div class="sep"></div>
+          <p class="sm dim"><b style="color:var(--bone)">The Dark.</b> Your torch burns fuel. In darkness your <b style="color:var(--sane)">Sanity</b> erodes and the Choir grows bolder. Find light, keep moving.</p>
+          <p class="sm dim" style="margin-top:8px"><b style="color:var(--bone)">The Loop.</b> Each floor is new. Loot, level, and grow. Descend the stairs. On Floor V, the Choir waits. Kill it to win. Die, and the run ends.</p>
+          <p class="sm dim" style="margin-top:8px"><b style="color:var(--bone)">Growth.</b> Kills grant XP. Level up to choose a boon. Equip weapons, armor, and rings from the loot you carve from the dead.</p>
+        </div>
+        <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn primary" id="helpBack">Back</button></div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="pause">
+      <div class="panel center" style="max-width:360px">
+        <h2 class="serif" style="font-size:30px">Paused</h2>
+        <p class="dim sm" style="margin:10px 0 18px">The dark holds its breath.</p>
+        <div class="col" style="gap:10px">
+          <button class="btn primary" id="btnResume">Resume</button>
+          <button class="btn" id="btnRestart">Abandon Run</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="levelup">
+      <div class="panel">
+        <h2 class="serif center" style="font-size:26px">The Choir Grants a Boon</h2>
+        <p class="dim sm center" id="lvupDesc" style="margin-top:6px">Choose one.</p>
+        <div class="choices" id="lvupChoices"></div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="death">
+      <div class="panel center" style="max-width:440px">
+        <h2 class="serif" style="font-size:40px;color:var(--blood-lit)">You Have Fallen</h2>
+        <p class="dim sm" style="margin:12px 0">The Hollow Choir claims another Warden.</p>
+        <div id="deathStats" class="col" style="gap:6px;align-items:center"></div>
+        <div class="row" style="justify-content:center;margin-top:20px">
+          <button class="btn primary" id="btnDeathRetry">Descend Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="victory">
+      <div class="panel center" style="max-width:480px">
+        <h2 class="serif" style="font-size:40px;color:var(--ember-lit)">The Choir is Silent</h2>
+        <p class="dim sm" style="margin:12px 0">The flame endures. You climb toward the light, the last Warden standing.</p>
+        <div id="victoryStats" class="col" style="gap:6px;align-items:center"></div>
+        <div class="row" style="justify-content:center;margin-top:20px">
+          <button class="btn primary" id="btnVictoryRetry">Descend Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen hidden bare" id="modal"></div>
+  </div>
+
+  <div id="errbox"></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================= *
+ *  SINGLE SHOT — engine core
+ *  A first-person 3D horror roguelike RPG in one file.
+ *  WebGL2 · procedural audio · procedural dungeon · no assets.
+ * ============================================================= */
+
+/* ---------- tiny error surface ---------- */
+const ERRBOX = () => document.getElementById("errbox");
+let errCount = 0;
+function reportErr(what, e) {
+  if (errCount > 3) return;
+  errCount++;
+  const box = ERRBOX(); if (!box) return;
+  box.style.display = "block";
+  box.textContent = "[" + what + "] " + (e && e.message ? e.message : e);
+  console.error(what, e);
+}
+window.addEventListener("error", ev => reportErr("runtime", ev.error || ev.message));
+
+/* ---------- math ---------- */
+const TAU = Math.PI * 2, PI = Math.PI, HALFPI = Math.PI / 2, DEG = Math.PI / 180;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0 || 1e-9)); return t * t * (3 - 2 * t); };
+const sign = Math.sign, abs = Math.abs, min = Math.min, max = Math.max, floor = Math.floor;
+const sqrt = Math.sqrt, sin = Math.sin, cos = Math.cos, atan2 = Math.atan2, hypot = Math.hypot;
+const damp = (a, b, lambda, dt) => lerp(a, b, 1 - Math.exp(-lambda * dt));
+const angDelta = (a, b) => { let d = (b - a) % TAU; if (d > PI) d -= TAU; if (d < -PI) d += TAU; return d; };
+const angLerp = (a, b, t) => a + angDelta(a, b) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+/* ---------- seeded RNG (mulberry32) ---------- */
+function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function makeRng(seed) {
+  let a = (typeof seed === "string" ? hashStr(seed) : (seed >>> 0)) || 0x9e3779b9;
+  const r = function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  r.range = (a, b) => a + r() * (b - a);
+  r.int = (a, b) => a + Math.floor(r() * (b - a + 1));
+  r.pick = arr => arr[(r() * arr.length) | 0];
+  r.chance = p => r() < p;
+  r.gauss = () => { let u = 0, v = 0; while (u === 0) u = r(); while (v === 0) v = r(); return sqrt(-2 * Math.log(u)) * cos(TAU * v); };
+  return r;
+}
+let RNG = makeRng(12345);
+const FX = makeRng((Math.random() * 4294967296) >>> 0); // cosmetic rng, never affects sim
+
+const SEED_WORDS = ["ash","vein","moth","gall","rime","hush","pyre","wane","loam","grist","murk","kiln","brine","sallow","wraith","cinder","hollow","choir","bone","dusk"];
+function randomSeedWord() { const r = makeRng((Math.random() * 4294967296) >>> 0); return r.pick(SEED_WORDS) + "-" + r.int(100, 999); }
+
+/* ---------- value / perlin noise ---------- */
+const NoiseTable = (() => {
+  const r = makeRng(1337), p = new Uint8Array(512), g = new Float32Array(512 * 2);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) { const j = (r() * (i + 1)) | 0; const t = p[i]; p[i] = p[j]; p[j] = t; }
+  for (let i = 0; i < 512; i++) p[i] = p[i & 255];
+  for (let i = 0; i < 256; i++) { const a = r() * TAU; g[i * 2] = cos(a); g[i * 2 + 1] = sin(a); }
+  return { p, g };
+})();
+function perlin2(x, y) {
+  const { p, g } = NoiseTable;
+  const X = floor(x) & 255, Y = floor(y) & 255;
+  const fx = x - floor(x), fy = y - floor(y);
+  const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10), v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+  const gi = (ix, iy) => (p[ix + p[iy]] & 255) * 2;
+  const d = (gx, gy, dx, dy) => g[gx] * dx + g[gy] * dy;
+  const a = gi(X, Y), b = gi(X + 1, Y), c = gi(X, Y + 1), dd = gi(X + 1, Y + 1);
+  const n00 = d(a, a + 1, fx, fy), n10 = d(b, b + 1, fx - 1, fy);
+  const n01 = d(c, c + 1, fx, fy - 1), n11 = d(dd, dd + 1, fx - 1, fy - 1);
+  return lerp(lerp(n00, n10, u), lerp(n01, n11, u), v);
+}
+function fbm2(x, y, oct = 4, gain = .5) { let s = 0, a = .5, f = 1, n = 0; for (let i = 0; i < oct; i++) { s += a * perlin2(x * f, y * f); n += a; a *= gain; f *= 2; } return s / n; }
+function hash2(x, y, s) { let h = Math.imul(x * 374761393 + y * 668265263 + s * 1274126177, 1); h = (h ^ h >>> 13) * 1274126177; return ((h ^ h >>> 16) >>> 0) / 4294967296; }
+
+/* ---------- DOM helpers ---------- */
+const $ = id => document.getElementById(id);
+const $$ = sel => Array.prototype.slice.call(document.querySelectorAll(sel));
+function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+const show = (e, on) => { if (e) e.classList.toggle("hidden", !on); };
+const fmt = n => (n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(Math.round(n)));
+const roman = n => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"][n] || String(n);
+
+/* ============================================================= *
+ *  PROCEDURAL AUDIO ENGINE (Web Audio)
+ *  Everything is synthesized at runtime: ambient drone, heartbeat,
+ *  gunshots, melee, enemy vocalizations, UI, boss roar, reverb.
+ * ============================================================= */
+const Audio = (() => {
+  let ctx = null, master = null, reverb = null, reverbGain = null, dry = null;
+  let ambientNodes = null, heartTimer = 0, heartPhase = 0;
+  let muted = false, started = false;
+  const noiseBuf = () => {
+    if (noiseBuf._b) return noiseBuf._b;
+    const len = ctx.sampleRate * 2, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    noiseBuf._b = b; return b;
+  };
+  function makeReverb() {
+    const len = ctx.sampleRate * 2.2, b = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4); }
+    const c = ctx.createConvolver(); c.buffer = b; return c;
+  }
+  function init() {
+    if (ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9;
+    dry = ctx.createGain(); dry.gain.value = 0.9;
+    reverb = makeReverb(); reverbGain = ctx.createGain(); reverbGain.gain.value = 0.5;
+    dry.connect(master); reverb.connect(reverbGain); reverbGain.connect(master);
+    master.connect(ctx.destination);
+    started = true;
+  }
+  function resume() { if (ctx && ctx.state === "suspended") ctx.resume(); }
+  function out(node, wet) { node.connect(dry); if (wet) node.connect(reverb); }
+  function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.9; }
+  function isMuted() { return muted; }
+
+  // ---- ambient drone (low, evolving, unsettling) ----
+  function startAmbient() {
+    if (!ctx || ambientNodes) return;
+    const g = ctx.createGain(); g.gain.value = 0.0; g.connect(dry); g.connect(reverb);
+    const o1 = ctx.createOscillator(); o1.type = "sine"; o1.frequency.value = 48;
+    const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = 48.6;
+    const o3 = ctx.createOscillator(); o3.type = "triangle"; o3.frequency.value = 96.3;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.06;
+    const lfoG = ctx.createGain(); lfoG.gain.value = 0.05;
+    lfo.connect(lfoG); lfoG.connect(g.gain);
+    const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 320; f.Q.value = 4;
+    o1.connect(f); o2.connect(f); o3.connect(f); f.connect(g);
+    o1.start(); o2.start(); o3.start(); lfo.start();
+    g.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 3);
+    ambientNodes = { g, o1, o2, o3, lfo };
+  }
+  function stopAmbient() {
+    if (!ambientNodes) return;
+    const a = ambientNodes; ambientNodes = null;
+    try { a.g.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2); } catch (e) {}
+    setTimeout(() => { try { a.o1.stop(); a.o2.stop(); a.o3.stop(); a.lfo.stop(); } catch (e) {} }, 1400);
+  }
+  // ---- heartbeat (driven by low HP / boss) ----
+  function heartbeat(intensity) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = "sine";
+    const g = ctx.createGain();
+    o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * intensity, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(g); out(g, true); o.start(t); o.stop(t + 0.26);
+  }
+
+  // ---- one-shot SFX ----
+  function shot() {
+    if (!ctx) return; const t = ctx.currentTime;
+    // crack
+    const n = ctx.createBufferSource(); n.buffer = noiseBuf();
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = 0.8;
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.9, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    n.connect(bp); bp.connect(ng); out(ng, true); n.start(t); n.stop(t + 0.4);
+    // body
+    const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+    const og = ctx.createGain(); og.gain.setValueAtTime(0.7, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    o.connect(og); out(og, true); o.start(t); o.stop(t + 0.32);
+    // sub
+    const s = ctx.createOscillator(); s.type = "sine"; s.frequency.setValueAtTime(60, t); s.frequency.exponentialRampToValueAtTime(28, t + 0.4);
+    const sg = ctx.createGain(); sg.gain.setValueAtTime(0.5, t); sg.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    s.connect(sg); out(sg, true); s.start(t); s.stop(t + 0.5);
+  }
+  function empty() { if (!ctx) return; const t = ctx.currentTime; const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = 1200; const g = ctx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05); o.connect(g); out(g, false); o.start(t); o.stop(t + 0.06); }
+  function reload() { if (!ctx) return; const t = ctx.currentTime; const n = ctx.createBufferSource(); n.buffer = noiseBuf(); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3000; bp.Q.value = 2; const g = ctx.createGain(); g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08); n.connect(bp); bp.connect(g); out(g, false); n.start(t); n.stop(t + 0.1); }
+  function melee(hit) {
+    if (!ctx) return; const t = ctx.currentTime;
+    const n = ctx.createBufferSource(); n.buffer = noiseBuf();
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = hit ? 900 : 1400; bp.Q.value = 1.2;
+    const g = ctx.createGain(); g.gain.setValueAtTime(hit ? 0.5 : 0.28, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    n.connect(bp); bp.connect(g); out(g, false); n.start(t); n.stop(t + 0.18);
+    if (hit) { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.12); const og = ctx.createGain(); og.gain.setValueAtTime(0.3, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.14); o.connect(og); out(og, false); o.start(t); o.stop(t + 0.16); }
+  }
+  function hurt() { if (!ctx) return; const t = ctx.currentTime; const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.2); const g = ctx.createGain(); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.24); const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900; o.connect(f); f.connect(g); out(g, true); o.start(t); o.stop(t + 0.26); }
+  function pickup() { if (!ctx) return; const t = ctx.currentTime; [660, 990].forEach((fr, i) => { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = fr; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + i * 0.05); g.gain.exponentialRampToValueAtTime(0.18, t + i * 0.05 + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.05 + 0.18); o.connect(g); out(g, false); o.start(t + i * 0.05); o.stop(t + i * 0.05 + 0.2); }); }
+  function levelup() { if (!ctx) return; const t = ctx.currentTime; [523, 659, 784, 1046].forEach((fr, i) => { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = fr; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + i * 0.09); g.gain.exponentialRampToValueAtTime(0.22, t + i * 0.09 + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.09 + 0.4); o.connect(g); out(g, true); o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.45); }); }
+  function ui() { if (!ctx) return; const t = ctx.currentTime; const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = 440; const g = ctx.createGain(); g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08); o.connect(g); out(g, false); o.start(t); o.stop(t + 0.09); }
+  function step() { if (!ctx) return; const t = ctx.currentTime; const n = ctx.createBufferSource(); n.buffer = noiseBuf(); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500; const g = ctx.createGain(); g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09); n.connect(lp); lp.connect(g); out(g, false); n.start(t); n.stop(t + 0.1); }
+
+  // enemy vocalizations — eerie, detuned, filtered
+  function grunt(kind) {
+    if (!ctx) return; const t = ctx.currentTime;
+    const base = kind === "boss" ? 90 : kind === "brute" ? 120 : kind === "wraith" ? 320 : 200;
+    const o = ctx.createOscillator(); o.type = kind === "wraith" ? "sawtooth" : "sawtooth";
+    o.frequency.setValueAtTime(base, t); o.frequency.linearRampToValueAtTime(base * 0.6, t + 0.3);
+    const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.setValueAtTime(base * 1.5, t); o2.frequency.linearRampToValueAtTime(base * 0.9, t + 0.3);
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = base * 2; f.Q.value = 6;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(kind === "boss" ? 0.5 : 0.28, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    o.connect(f); o2.connect(f); f.connect(g); out(g, true); o.start(t); o2.start(t); o.stop(t + 0.45); o2.stop(t + 0.45);
+  }
+  function bossRoar() {
+    if (!ctx) return; const t = ctx.currentTime;
+    [60, 90, 130].forEach(fr => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(fr, t); o.frequency.linearRampToValueAtTime(fr * 0.5, t + 1.2); const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 400; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.2); g.gain.exponentialRampToValueAtTime(0.001, t + 1.4); o.connect(f); f.connect(g); out(g, true); o.start(t); o.stop(t + 1.5); });
+    const n = ctx.createBufferSource(); n.buffer = noiseBuf(); const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 300; const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.6); n.connect(f); f.connect(g); out(g, true); n.start(t); n.stop(t + 1.7);
+  }
+  function death() { if (!ctx) return; const t = ctx.currentTime; const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(30, t + 1.2); const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.3); const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 600; o.connect(f); f.connect(g); out(g, true); o.start(t); o.stop(t + 1.4); }
+  function victory() { if (!ctx) return; const t = ctx.currentTime; [392, 523, 659, 784, 1046].forEach((fr, i) => { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = fr; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + i * 0.12); g.gain.exponentialRampToValueAtTime(0.25, t + i * 0.12 + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.8); o.connect(g); out(g, true); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.9); }); }
+
+  function tick(dt, intensity) {
+    if (!ctx) return;
+    heartTimer -= dt;
+    if (intensity > 0.15 && heartTimer <= 0) { heartbeat(intensity); heartTimer = lerp(1.1, 0.55, clamp01(intensity)); }
+  }
+  return { init, resume, startAmbient, stopAmbient, tick, setMuted, isMuted,
+    shot, empty, reload, melee, hurt, pickup, levelup, ui, step, grunt, bossRoar, death, victory };
+})();
+
+/* ============================================================= *
+ *  WEBGL2 RENDERER
+ *  Dynamic point-light lighting, distance fog, procedural texture
+ *  atlas, static world + dynamic actor meshes, particles,
+ *  first-person viewmodel, and a bloom/grade/grain post pipeline.
+ * ============================================================= */
+const GLC = { gl: null, floatOK: false };
+function glInit(canvas) {
+  const opts = { alpha: false, antialias: false, depth: true, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: false };
+  let gl = canvas.getContext("webgl2", opts);
+  if (!gl) { const box = ERRBOX(); if (box) { box.style.display = "block"; box.textContent = "WebGL2 is required to run SINGLE SHOT."; } throw new Error("no webgl2"); }
+  const ext = gl.getExtension("EXT_color_buffer_float");
+  GLC.floatOK = !!ext;
+  GLC.gl = gl;
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
+  gl.clearColor(0.01, 0.012, 0.02, 1);
+  return gl;
+}
+function compileShader(type, src, tag) {
+  const gl = GLC.gl, s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s) || "";
+    reportErr("shader:" + tag, new Error(log));
+    throw new Error("shader compile " + tag + ": " + log);
+  }
+  return s;
+}
+function Program(vsSrc, fsSrc, tag) {
+  const gl = GLC.gl;
+  const vs = compileShader(gl.VERTEX_SHADER, vsSrc, tag + ".vs");
+  const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc, tag + ".fs");
+  const p = gl.createProgram();
+  gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { reportErr("link:" + tag, new Error(gl.getProgramInfoLog(p))); throw new Error("link " + tag); }
+  const U = Object.create(null), A = Object.create(null);
+  const nu = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < nu; i++) { const info = gl.getActiveUniform(p, i); U[info.name.replace(/\[0\]$/, "")] = gl.getUniformLocation(p, info.name); }
+  const na = gl.getProgramParameter(p, gl.ACTIVE_ATTRIBUTES);
+  for (let i = 0; i < na; i++) { const info = gl.getActiveAttrib(p, i); A[info.name] = gl.getAttribLocation(p, info.name); }
+  return { p, U, A };
+}
+
+/* ---------- matrices (column-major, Float32Array(16)) ---------- */
+function m4() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; }
+function m4ident(m) { m.fill(0); m[0] = m[5] = m[10] = m[15] = 1; return m; }
+function m4copy(o, a) { o.set(a); return o; }
+function m4mul(o, a, b) {
+  const a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+        a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
+        a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
+        a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+  for (let i = 0; i < 4; i++) {
+    const b0 = b[i * 4], b1 = b[i * 4 + 1], b2 = b[i * 4 + 2], b3 = b[i * 4 + 3];
+    o[i * 4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    o[i * 4 + 1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    o[i * 4 + 2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    o[i * 4 + 3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  }
+  return o;
+}
+function m4persp(o, fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2); o.fill(0);
+  o[0] = f / aspect; o[5] = f; o[10] = (far + near) / (near - far); o[11] = -1; o[14] = (2 * far * near) / (near - far);
+  return o;
+}
+const _lx = new Float32Array(3), _ly = new Float32Array(3), _lz = new Float32Array(3);
+function m4lookAt(o, eye, center, up) {
+  _lz[0] = eye[0] - center[0]; _lz[1] = eye[1] - center[1]; _lz[2] = eye[2] - center[2];
+  let l = hypot(_lz[0], _lz[1], _lz[2]) || 1; _lz[0] /= l; _lz[1] /= l; _lz[2] /= l;
+  _lx[0] = up[1] * _lz[2] - up[2] * _lz[1]; _lx[1] = up[2] * _lz[0] - up[0] * _lz[2]; _lx[2] = up[0] * _lz[1] - up[1] * _lz[0];
+  l = hypot(_lx[0], _lx[1], _lx[2]) || 1; _lx[0] /= l; _lx[1] /= l; _lx[2] /= l;
+  _ly[0] = _lz[1] * _lx[2] - _lz[2] * _lx[1]; _ly[1] = _lz[2] * _lx[0] - _lz[0] * _lx[2]; _ly[2] = _lz[0] * _lx[1] - _lz[1] * _lx[0];
+  o[0] = _lx[0]; o[1] = _ly[0]; o[2] = _lz[0]; o[3] = 0;
+  o[4] = _lx[1]; o[5] = _ly[1]; o[6] = _lz[1]; o[7] = 0;
+  o[8] = _lx[2]; o[9] = _ly[2]; o[10] = _lz[2]; o[11] = 0;
+  o[12] = -(_lx[0] * eye[0] + _lx[1] * eye[1] + _lx[2] * eye[2]);
+  o[13] = -(_ly[0] * eye[0] + _ly[1] * eye[1] + _ly[2] * eye[2]);
+  o[14] = -(_lz[0] * eye[0] + _lz[1] * eye[1] + _lz[2] * eye[2]);
+  o[15] = 1;
+  return o;
+}
+function m4trs(o, tx, ty, tz, ry, sx, sy, sz) {
+  const c = cos(ry), s = sin(ry);
+  o[0] = c * sx; o[1] = 0; o[2] = -s * sx; o[3] = 0;
+  o[4] = 0; o[5] = sy; o[6] = 0; o[7] = 0;
+  o[8] = s * sz; o[9] = 0; o[10] = c * sz; o[11] = 0;
+  o[12] = tx; o[13] = ty; o[14] = tz; o[15] = 1;
+  return o;
+}
+function m4fromEuler(o, tx, ty, tz, rx, ry, rz, sx, sy, sz) {
+  const cx = cos(rx), sx_ = sin(rx), cy = cos(ry), sy_ = sin(ry), cz = cos(rz), sz_ = sin(rz);
+  const m00 = cy * cz + sy_ * sx_ * sz_, m01 = cx * sz_, m02 = -sy_ * cz + cy * sx_ * sz_;
+  const m10 = -cy * sz_ + sy_ * sx_ * cz, m11 = cx * cz, m12 = sy_ * sz_ + cy * sx_ * sz_;
+  const m20 = sy_ * cx, m21 = -sx_, m22 = cy * cx;
+  o[0] = m00 * sx; o[1] = m10 * sx; o[2] = m20 * sx; o[3] = 0;
+  o[4] = m01 * sy; o[5] = m11 * sy; o[6] = m21 * sy; o[7] = 0;
+  o[8] = m02 * sz; o[9] = m12 * sz; o[10] = m22 * sz; o[11] = 0;
+  o[12] = tx; o[13] = ty; o[14] = tz; o[15] = 1;
+  return o;
+}
+function m4invert(o, a) {
+  const b00 = a[0] * a[5] - a[1] * a[4], b01 = a[0] * a[6] - a[2] * a[4],
+        b02 = a[0] * a[7] - a[3] * a[4], b03 = a[1] * a[6] - a[2] * a[5],
+        b04 = a[1] * a[7] - a[3] * a[5], b05 = a[2] * a[7] - a[3] * a[6],
+        b06 = a[8] * a[13] - a[9] * a[12], b07 = a[8] * a[14] - a[10] * a[12],
+        b08 = a[8] * a[15] - a[11] * a[12], b09 = a[9] * a[14] - a[10] * a[13],
+        b10 = a[9] * a[15] - a[11] * a[13], b11 = a[10] * a[15] - a[11] * a[14];
+  let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  if (!det) return m4ident(o);
+  det = 1 / det;
+  o[0] = (a[5] * b11 - a[6] * b10 + a[7] * b09) * det;
+  o[1] = (a[2] * b10 - a[1] * b11 - a[3] * b09) * det;
+  o[2] = (a[13] * b05 - a[14] * b04 + a[15] * b03) * det;
+  o[3] = (a[10] * b04 - a[9] * b05 - a[11] * b03) * det;
+  o[4] = (a[6] * b08 - a[4] * b11 - a[7] * b07) * det;
+  o[5] = (a[0] * b11 - a[2] * b08 + a[3] * b07) * det;
+  o[6] = (a[14] * b02 - a[12] * b05 - a[15] * b01) * det;
+  o[7] = (a[8] * b05 - a[10] * b02 + a[11] * b01) * det;
+  o[8] = (a[4] * b10 - a[5] * b08 + a[7] * b06) * det;
+  o[9] = (a[1] * b08 - a[0] * b10 - a[3] * b06) * det;
+  o[10] = (a[12] * b04 - a[13] * b02 + a[15] * b00) * det;
+  o[11] = (a[9] * b02 - a[8] * b04 - a[11] * b00) * det;
+  o[12] = (a[5] * b07 - a[4] * b09 - a[6] * b06) * det;
+  o[13] = (a[0] * b09 - a[1] * b07 + a[2] * b06) * det;
+  o[14] = (a[13] * b01 - a[12] * b03 - a[14] * b00) * det;
+  o[15] = (a[8] * b03 - a[9] * b01 + a[10] * b00) * det;
+  return o;
+}
+function m4xformPoint(o, m, p) {
+  const x = p[0], y = p[1], z = p[2];
+  const w = m[3] * x + m[7] * y + m[11] * z + m[15] || 1;
+  o[0] = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+  o[1] = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+  o[2] = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w;
+  return o;
+}
+
+/* ---------- frustum culling ---------- */
+const Frustum = { p: new Float32Array(24) };
+function frustumFromMat(m) {
+  const p = Frustum.p;
+  const rows = [
+    [m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12]],
+    [m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12]],
+    [m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13]],
+    [m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13]],
+    [m[3] + m[2], m[7] + m[6], m[11] + m[10], m[15] + m[14]],
+    [m[3] - m[2], m[7] - m[6], m[11] - m[10], m[15] - m[14]],
+  ];
+  for (let i = 0; i < 6; i++) { const r = rows[i], l = hypot(r[0], r[1], r[2]) || 1; p[i * 4] = r[0] / l; p[i * 4 + 1] = r[1] / l; p[i * 4 + 2] = r[2] / l; p[i * 4 + 3] = r[3] / l; }
+}
+function sphereInFrustum(x, y, z, r) {
+  const p = Frustum.p;
+  for (let i = 0; i < 6; i++) { const a = p[i * 4], b = p[i * 4 + 1], c = p[i * 4 + 2], d = p[i * 4 + 3]; if (a * x + b * y + c * z + d < -r) return false; }
+  return true;
+}
+
+/* ---------- mesh + VAO ---------- */
+function Mesh(vertsF32, idxU32, layout) {
+  const gl = GLC.gl;
+  const vao = gl.createVertexArray(), vbo = gl.createBuffer(), ibo = gl.createBuffer();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, vertsF32, gl.STATIC_DRAW);
+  let off = 0, stride = 0; for (const l of layout) stride += l.n;
+  for (const l of layout) { gl.enableVertexAttribArray(l.loc); gl.vertexAttribPointer(l.loc, l.n, gl.FLOAT, false, stride * 4, off * 4); off += l.n; }
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxU32, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  return { vao, count: idxU32.length, layout, stride };
+}
+function DynMesh(maxVerts, layout) {
+  const gl = GLC.gl;
+  let stride = 0; for (const l of layout) stride += l.n;
+  const data = new Float32Array(maxVerts * stride);
+  const vao = gl.createVertexArray(), vbo = gl.createBuffer();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
+  let off = 0; for (const l of layout) { gl.enableVertexAttribArray(l.loc); gl.vertexAttribPointer(l.loc, l.n, gl.FLOAT, false, stride * 4, off * 4); off += l.n; }
+  gl.bindVertexArray(null);
+  return {
+    vao, data, stride, count: 0,
+    update(arr) { const d = arr instanceof Float32Array ? arr : new Float32Array(arr); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferSubData(gl.ARRAY_BUFFER, 0, d); this.count = d.length / stride; },
+  };
+}
+
+/* ---------- textures ---------- */
+function texFromData(w, h, u8, opts) {
+  const gl = GLC.gl, o = opts || {};
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, u8);
+  const filt = o.nearest ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, o.mirror ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, o.mirror ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  gl.generateMipmap();
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  return t;
+}
+
+/* ---------- procedural texture atlas (8x8 tiles of 64px) ---------- */
+const ATLAS_TILES = 8, TILE = 64, ATLAS = ATLAS_TILES * TILE;
+// tile indices
+const T_FLOOR = 0, T_WALL = 1, T_BRICK = 2, T_WOOD = 3, T_METAL = 4, T_BONE = 5, T_TORCH = 6, T_DOOR = 7,
+      T_MOSS = 8, T_BLOOD = 9, T_SKY = 10, T_RUNE = 11, T_CARPET = 12, T_CRYSTAL = 13;
+function buildAtlas() {
+  const s = ATLAS, data = new Uint8Array(s * s * 4);
+  const put = (tx, ty, x, y, r, g, b, a) => { const px = tx * TILE + x, py = ty * TILE + y; if (px < 0 || py < 0 || px >= s || py >= s) return; const i = (py * s + px) * 4; data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = a == null ? 255 : a; };
+  const tile = (idx, fn) => { const tx = idx % ATLAS_TILES, ty = (idx / ATLAS_TILES) | 0; for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) { const c = fn(x / TILE, y / TILE, x, y); put(tx, ty, x, y, c[0], c[1], c[2], c[3]); } };
+  const n = (u, v, f, sd) => fbm2(u * f, v * f, 4, .5) + .5 + (sd ? 0 : 0);
+
+  // floor: worn stone tiles with grout + stains
+  tile(T_FLOOR, (u, v, x, y) => {
+    const cell = 4, cx = floor(u * cell), cy = floor(v * cell), fx = u * cell - cx, fy = v * cell - cy;
+    const grout = smoothstep(0, .06, min(fx, 1 - fx)) * smoothstep(0, .06, min(fy, 1 - fy));
+    const grit = n(u, v, 40, 0) * .5 + n(u, v, 90, 0) * .3;
+    const id = hash2(cx, cy, 7);
+    const base = .30 + id * .10 + grit * .18;
+    const stain = smoothstep(.75, 1, fbm2(u * .5, v * .5, 3, .5) + .5) * .25;
+    const t = clamp01(base * grout + (1 - grout) * .12 - stain * .1);
+    return [t * 150, t * 142, t * 128, 255];
+  });
+  // wall: rough stone blocks
+  tile(T_WALL, (u, v, x, y) => {
+    const rows = 3, ry = v * rows, row = floor(ry), fy = ry - row, shift = (row % 2) * .5;
+    const cols = 2, rx = u * cols + shift, col = floor(rx), fx = rx - col;
+    const grout = smoothstep(0, .05, min(fx, 1 - fx)) * smoothstep(0, .05, min(fy, 1 - fy));
+    const id = hash2(col, row, 21);
+    const grit = n(u, v, 50, 0) * .5 + n(u, v, 120, 0) * .3;
+    const base = .34 + id * .12 + grit * .2;
+    const damp = smoothstep(.4, 1, v) * .18;
+    const t = clamp01(base * grout + (1 - grout) * .10 - damp);
+    return [t * 168, t * 158, t * 140, 255];
+  });
+  // brick: red-brown
+  tile(T_BRICK, (u, v, x, y) => {
+    const rows = 5, ry = v * rows, row = floor(ry), fy = ry - row, shift = (row % 2) * .5;
+    const cols = 2, rx = u * cols + shift, col = floor(rx), fx = rx - col;
+    const grout = smoothstep(0, .07, min(fx, 1 - fx)) * smoothstep(0, .07, min(fy, 1 - fy));
+    const id = hash2(col, row, 33);
+    const grit = n(u, v, 60, 0) * .5;
+    const base = .30 + id * .14 + grit * .2;
+    const t = clamp01(base * grout + (1 - grout) * .12);
+    return [t * 150, t * 96, t * 74, 255];
+  });
+  // wood: planks
+  tile(T_WOOD, (u, v, x, y) => {
+    const planks = 4, py = v * planks, prow = floor(py), fy = py - prow;
+    const grout = smoothstep(0, .04, min(fy, 1 - fy));
+    const grain = n(u * .5, v * 3, 8, 0) * .5 + n(u * 2, v * 40, 6, 0) * .3;
+    const id = hash2(0, prow, 44);
+    const base = .32 + id * .1 + grain * .25;
+    const t = clamp01(base * grout + (1 - grout) * .15);
+    return [t * 150, t * 104, t * 60, 255];
+  });
+  // metal: dark iron with scratches
+  tile(T_METAL, (u, v, x, y) => {
+    const grit = n(u, v, 30, 0) * .4 + n(u, v, 140, 0) * .3;
+    const scratch = smoothstep(.5, .52, n(u * 3, v, 20, 0)) * .1;
+    const base = .28 + grit * .3 + scratch;
+    const t = clamp01(base);
+    return [t * 120, t * 124, t * 132, 255];
+  });
+  // bone: pale, cracked
+  tile(T_BONE, (u, v, x, y) => {
+    const grit = n(u, v, 24, 0) * .4 + n(u, v, 90, 0) * .2;
+    const crack = smoothstep(.5, .53, n(u * 2, v * 2, 10, 0)) * .3;
+    const base = .62 + grit * .2 - crack;
+    const t = clamp01(base);
+    return [t * 220, t * 210, t * 180, 255];
+  });
+  // torch: emissive flame (additive look via emissive channel)
+  tile(T_TORCH, (u, v, x, y) => {
+    const dx = u - .5, dy = v - .35;
+    const d = hypot(dx * 1.4, dy * 1.1);
+    const flick = n(u * 3, v * 3 + 1, 6, 0) * .3;
+    const core = smoothstep(.5, 0, d + flick);
+    const glow = smoothstep(.9, 0, d) * .5;
+    const r = clamp01(core * 1.2 + glow) * 255;
+    const g = clamp01(core * .8 + glow * .5) * 200;
+    const b = clamp01(core * .2 + glow * .1) * 90;
+    return [r, g, b, 255];
+  });
+  // door: heavy metal with rune
+  tile(T_DOOR, (u, v, x, y) => {
+    const panel = smoothstep(0, .05, min(u, 1 - u)) * smoothstep(0, .05, min(v, 1 - v));
+    const grit = n(u, v, 40, 0) * .3;
+    const base = .22 + grit * .2;
+    const t = clamp01(base * panel + (1 - panel) * .1);
+    return [t * 110, t * 100, t * 90, 255];
+  });
+  // moss: green overgrowth
+  tile(T_MOSS, (u, v, x, y) => {
+    const m = smoothstep(.4, .7, n(u * 2, v * 2, 8, 0));
+    const grit = n(u, v, 50, 0) * .3;
+    const stone = .30 + grit * .2;
+    const r = lerp(stone * 150, 90, m), g = lerp(stone * 140, 130, m), b = lerp(stone * 120, 70, m);
+    return [r, g, b, 255];
+  });
+  // blood: dark red splatter on stone
+  tile(T_BLOOD, (u, v, x, y) => {
+    const base = .30 + n(u, v, 40, 0) * .2;
+    const splat = smoothstep(.45, .5, n(u * 3, v * 3, 6, 0)) * .6;
+    const r = lerp(base * 150, 120, splat), g = lerp(base * 140, 20, splat), b = lerp(base * 120, 18, splat);
+    return [r, g, b, 255];
+  });
+  // sky: deep void gradient (used for background clear / skybox fallback)
+  tile(T_SKY, (u, v, x, y) => {
+    const g = smoothstep(0, 1, v);
+    return [lerp(4, 10, g), lerp(5, 12, g), lerp(10, 18, g), 255];
+  });
+  // rune: glowing sigil on dark stone
+  tile(T_RUNE, (u, v, x, y) => {
+    const dx = u - .5, dy = v - .5, d = hypot(dx, dy);
+    const ring = smoothstep(.34, .30, d) * smoothstep(.22, .26, d);
+    const spokes = abs(sin(atan2(dy, dx) * 4)) ;
+    const sp = smoothstep(.6, .9, spokes) * smoothstep(.3, .1, d);
+    const glow = ring + sp * .6;
+    const base = .12 + n(u, v, 30, 0) * .08;
+    return [base * 90 + glow * 200, base * 90 + glow * 120, base * 110 + glow * 240, 255];
+  });
+  // carpet: dark red with pattern
+  tile(T_CARPET, (u, v, x, y) => {
+    const p = (floor(u * 8) + floor(v * 8)) % 2;
+    const grit = n(u, v, 80, 0) * .2;
+    const base = (p ? .28 : .18) + grit;
+    return [base * 160, base * 40, base * 40, 255];
+  });
+  // crystal: faceted teal
+  tile(T_CRYSTAL, (u, v, x, y) => {
+    const f = abs(sin(u * 6.283)) * abs(sin(v * 6.283));
+    const base = .3 + f * .4 + n(u, v, 20, 0) * .2;
+    return [base * 80, base * 180, base * 200, 255];
+  });
+
+  return texFromData(s, s, data, { mirror: true });
+}
+function tileUV(tile) { const tx = tile % ATLAS_TILES, ty = (tile / ATLAS_TILES) | 0; return [tx / ATLAS_TILES, ty / ATLAS_TILES, 1 / ATLAS_TILES, 1 / ATLAS_TILES]; }
+
+/* ---------- material properties (metalness, emissive, normal, wet) ---------- */
+const MAT = { FLOOR: 0, WALL: 1, BRICK: 2, WOOD: 3, METAL: 4, BONE: 5, TORCH: 6, DOOR: 7, MOSS: 8, BLOOD: 9, RUNE: 10, CRYSTAL: 11, ENEMY: 12, PLAYER: 13, PICKUP: 14, PROJ: 15 };
+const MAT_COUNT = 16;
+const MAT_PROPS = new Float32Array(16 * 4);
+function setMatProps(i, metal, emis, nrm, wet) { MAT_PROPS[i * 4] = metal; MAT_PROPS[i * 4 + 1] = emis; MAT_PROPS[i * 4 + 2] = nrm; MAT_PROPS[i * 4 + 3] = wet; }
+function initMats() {
+  setMatProps(MAT.FLOOR, .05, 0, 1.0, .1);
+  setMatProps(MAT.WALL, .05, 0, 1.2, .05);
+  setMatProps(MAT.BRICK, .05, 0, 1.1, .05);
+  setMatProps(MAT.WOOD, .0, 0, .8, 0);
+  setMatProps(MAT.METAL, .8, 0, .6, 0);
+  setMatProps(MAT.BONE, .0, 0, .7, 0);
+  setMatProps(MAT.TORCH, 0, 1.0, 0, 0);
+  setMatProps(MAT.DOOR, .7, 0, .5, 0);
+  setMatProps(MAT.MOSS, .0, 0, 1.0, .3);
+  setMatProps(MAT.BLOOD, .0, 0, .6, .5);
+  setMatProps(MAT.RUNE, 0, .9, 0, 0);
+  setMatProps(MAT.CRYSTAL, .1, .7, .4, 0);
+  setMatProps(MAT.ENEMY, .1, .25, .8, 0);
+  setMatProps(MAT.PLAYER, .1, 0, .8, 0);
+  setMatProps(MAT.PICKUP, 0, .8, 0, 0);
+  setMatProps(MAT.PROJ, 0, 1.0, 0, 0);
+}
+
+/* ---------- geometry builders ---------- */
+function buildBox(sx, sy, sz) {
+  const x = sx / 2, y = sy / 2, z = sz / 2;
+  const v = [
+    // positions, normals, uv (tile-local 0..1)
+    -x,-y,-z,  0,0,-1, 0,0,   x,-y,-z, 0,0,-1, 1,0,   x,y,-z, 0,0,-1, 1,1,   -x,y,-z, 0,0,-1, 0,1,
+    -x,-y,z,   0,0,1,  0,0,   x,-y,z,  0,0,1,  1,0,   x,y,z,  0,0,1,  1,1,   -x,y,z,  0,0,1,  0,1,
+    -x,-y,-z,  -1,0,0, 0,0,   -x,-y,z, -1,0,0, 1,0,   -x,y,z, -1,0,0, 1,1,   -x,y,-z, -1,0,0, 0,1,
+    x,-y,-z,   1,0,0,  0,0,   x,-y,z,  1,0,0,  1,0,   x,y,z,  1,0,0,  1,1,   x,y,-z,  1,0,0,  0,1,
+    -x,-y,-z,  0,-1,0, 0,0,   x,-y,-z, 0,-1,0, 1,0,   x,y,-z, 0,-1,0, 1,1,   -x,y,-z, 0,-1,0, 0,1,
+    -x,-y,z,   0,1,0,  0,0,   x,-y,z,  0,1,0,  1,0,   x,y,z,  0,1,0,  1,1,   -x,y,z,  0,1,0,  0,1,
+  ];
+  const idx = [];
+  for (let i = 0; i < 6; i++) { const o = i * 4; idx.push(o, o + 1, o + 2, o, o + 2, o + 3); }
+  return { verts: new Float32Array(v), idx: new Uint32Array(idx) };
+}
+function buildCylinder(r, h, seg) {
+  const v = [], idx = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = i / seg * TAU, c = cos(a), s = sin(a);
+    v.push(c * r, -h / 2, s * r, c, 0, s, i / seg, 0);
+    v.push(c * r, h / 2, s * r, c, 0, s, i / seg, 1);
+  }
+  for (let i = 0; i < seg; i++) { const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3; idx.push(a, c, b, b, c, d); }
+  // caps
+  const cb = v.length / 8; v.push(0, -h / 2, 0, 0, -1, 0, .5, .5);
+  for (let i = 0; i <= seg; i++) { const a = i / seg * TAU; v.push(cos(a) * r, -h / 2, sin(a) * r, 0, -1, 0, cos(a) * .5 + .5, sin(a) * .5 + .5); }
+  for (let i = 0; i < seg; i++) idx.push(cb, cb + 1 + i, cb + 2 + i);
+  const ct = v.length / 8; v.push(0, h / 2, 0, 0, 1, 0, .5, .5);
+  for (let i = 0; i <= seg; i++) { const a = i / seg * TAU; v.push(cos(a) * r, h / 2, sin(a) * r, 0, 1, 0, cos(a) * .5 + .5, sin(a) * .5 + .5); }
+  for (let i = 0; i < seg; i++) idx.push(ct, ct + 2 + i, ct + 1 + i);
+  return { verts: new Float32Array(v), idx: new Uint32Array(idx) };
+}
+function buildIcosphere(subdiv) {
+  const t = (1 + sqrt(5)) / 2;
+  let verts = [
+    -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0,
+    0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t,
+    t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1,
+  ];
+  let faces = [
+    0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+    1, 5, 9, 5, 4, 9, 4, 8, 9, 8, 6, 9, 6, 7, 9,
+    7, 10, 6, 10, 2, 6, 2, 3, 6, 3, 4, 6, 3, 8, 4,
+    4, 1, 8, 1, 7, 8, 7, 10, 2, 10, 5, 2, 5, 11, 2,
+    11, 3, 2, 3, 12, 2, 12, 11, 3,
+  ];
+  const cache = {};
+  const mid = (a, b) => { const k = a < b ? a + "_" + b : b + "_" + a; if (cache[k] != null) return cache[k]; const va = verts.slice(a * 3), vb = verts.slice(b * 3); const m = [(va[0] + vb[0]) / 2, (va[1] + vb[1]) / 2, (va[2] + vb[2]) / 2]; const l = hypot(m[0], m[1], m[2]) || 1; verts.push(m[0] / l, m[1] / l, m[2] / l); cache[k] = verts.length / 3 - 1; return cache[k]; };
+  for (let s = 0; s < subdiv; s++) {
+    const nf = [];
+    for (let i = 0; i < faces.length; i += 3) {
+      const a = faces[i], b = faces[i + 1], c = faces[i + 2];
+      const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+      nf.push(a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca);
+    }
+    faces = nf;
+  }
+  // build indexed mesh with normals = position (unit sphere)
+  const v = [], idx = [];
+  for (let i = 0; i < verts.length; i += 3) {
+    const x = verts[i], y = verts[i + 1], z = verts[i + 2];
+    v.push(x, y, z, x, y, z, .5, .5);
+  }
+  for (let i = 0; i < faces.length; i += 3) idx.push(faces[i], faces[i + 1], faces[i + 2]);
+  return { verts: new Float32Array(v), idx: new Uint32Array(idx) };
+}
+
+/* ---------- static world mesh (baked per floor) ---------- */
+// layout: pos(3) normal(3) uv(2) tile(1) mat(1) = 10 floats
+const LAYOUT_WORLD = [{ n: 3, loc: 0 }, { n: 3, loc: 1 }, { n: 2, loc: 2 }, { n: 1, loc: 3 }, { n: 1, loc: 4 }];
+function buildWorldMesh(floorData) {
+  const verts = [], idx = [];
+  const box = buildBox(1, 1, 1);
+  const cyl = buildCylinder(.5, 1, 10);
+  const ico = buildIcosphere(1);
+  const addMesh = (geo, x, y, z, ry, sx, sy, sz, tile, mat) => {
+    const c = cos(ry), s = sin(ry);
+    const base = verts.length / 10;
+    for (let i = 0; i < geo.verts.length; i += 8) {
+      let px = geo.verts[i] * sx, py = geo.verts[i + 1] * sy, pz = geo.verts[i + 2] * sz;
+      let rx = px * c + pz * s, rz = -px * s + pz * c;
+      let nx = geo.verts[i + 3], nz = geo.verts[i + 5];
+      let rnx = nx * c + nz * s, rnz = -nx * s + nz * c;
+      verts.push(rx + x, py + y, rz + z, rnx, geo.verts[i + 4], rnz, geo.verts[i + 6], geo.verts[i + 7], tile, mat);
+    }
+    for (let i = 0; i < geo.idx.length; i++) idx.push(base + geo.idx[i]);
+  };
+  // floor tiles
+  for (const t of floorData.tiles) {
+    if (t.floor) addMesh(box, t.x + .5, 0, t.z + .5, 0, 1, .1, 1, t.floorTile, t.floorMat);
+  }
+  // walls
+  for (const t of floorData.tiles) {
+    if (t.wallN) addMesh(box, t.x + .5, 1, t.z, 0, 1, 2, .12, t.wallTile, t.wallMat);
+    if (t.wallS) addMesh(box, t.x + .5, 1, t.z + 1, 0, 1, 2, .12, t.wallTile, t.wallMat);
+    if (t.wallW) addMesh(box, t.x, 1, t.z + .5, 0, .12, 2, 1, t.wallTile, t.wallMat);
+    if (t.wallE) addMesh(box, t.x + 1, 1, t.z + .5, 0, .12, 2, 1, t.wallTile, t.wallMat);
+  }
+  // props
+  for (const p of floorData.props) {
+    if (p.type === "pillar") addMesh(cyl, p.x, 1, p.z, 0, p.r, 2, p.r, p.tile, p.mat);
+    else if (p.type === "crate") addMesh(box, p.x, .5, p.z, p.rot || 0, p.s, 1, p.s, p.tile, p.mat);
+    else if (p.type === "torch") addMesh(cyl, p.x, 1.4, p.z, 0, .12, .8, .12, T_TORCH, MAT.TORCH);
+    else if (p.type === "rune") addMesh(box, p.x, 1, p.z, 0, 1, 2, .1, T_RUNE, MAT.RUNE);
+    else if (p.type === "stairs") addMesh(box, p.x, .5, p.z, 0, 1, 1, 1, p.tile, p.mat);
+    else if (p.type === "altar") addMesh(box, p.x, .6, p.z, p.rot || 0, 1.4, 1.2, 1.4, p.tile, p.mat);
+  }
+  return Mesh(new Float32Array(verts), new Uint32Array(idx), LAYOUT_WORLD);
+}
+
+/* ---------- dynamic actor mesh (enemies, pickups, projectiles) ---------- */
+// layout: pos(3) normal(3) uv(2) tile(1) mat(1) tint(3) = 13 floats
+const LAYOUT_ACTOR = [{ n: 3, loc: 0 }, { n: 3, loc: 1 }, { n: 2, loc: 2 }, { n: 1, loc: 3 }, { n: 1, loc: 4 }, { n: 3, loc: 5 }];
+const MAX_ACTOR_VERTS = 65536;
+let actorMesh = null;
+function initActorMesh() { actorMesh = DynMesh(MAX_ACTOR_VERTS, LAYOUT_ACTOR); }
+const _boxGeo = null; // filled in init
+let GEO = {};
+function expandGeo(geo) {
+  const out = new Float32Array(geo.idx.length * 8);
+  for (let i = 0; i < geo.idx.length; i++) {
+    const vi = geo.idx[i] * 8, o = i * 8;
+    for (let k = 0; k < 8; k++) out[o + k] = geo.verts[vi + k];
+  }
+  return out;
+}
+function initGeo() {
+  GEO.box = buildBox(1, 1, 1);
+  GEO.cyl = buildCylinder(.5, 1, 10);
+  GEO.ico = buildIcosphere(2);
+  // non-indexed (expanded) versions for the dynamic actor buffer (drawArrays)
+  GEO.boxNI = expandGeo(GEO.box);
+  GEO.cylNI = expandGeo(GEO.cyl);
+  GEO.icoNI = expandGeo(GEO.ico);
+}
+function pushActorMesh(verts, x, y, z, ry, sx, sy, sz, tile, mat, tint, out) {
+  const c = cos(ry), s = sin(ry);
+  const g = verts;
+  for (let i = 0; i < g.length; i += 8) {
+    let px = g[i] * sx, py = g[i + 1] * sy, pz = g[i + 2] * sz;
+    let rx = px * c + pz * s, rz = -px * s + pz * c;
+    let nx = g[i + 3], nz = g[i + 5];
+    let rnx = nx * c + nz * s, rnz = -nx * s + nz * c;
+    out.push(rx + x, py + y, rz + z, rnx, g[i + 4], rnz, g[i + 6], g[i + 7], tile, mat, tint[0], tint[1], tint[2]);
+  }
+  return out;
+}
+function pushWorldMesh(verts, x, y, z, ry, sx, sy, sz, tile, mat, out) {
+  const c = cos(ry), s = sin(ry);
+  const g = verts;
+  for (let i = 0; i < g.length; i += 8) {
+    let px = g[i] * sx, py = g[i + 1] * sy, pz = g[i + 2] * sz;
+    let rx = px * c + pz * s, rz = -px * s + pz * c;
+    let nx = g[i + 3], nz = g[i + 5];
+    let rnx = nx * c + nz * s, rnz = -nx * s + nz * c;
+    out.push(rx + x, py + y, rz + z, rnx, g[i + 4], rnz, g[i + 6], g[i + 7], tile, mat);
+  }
+  return out;
+}
+
+/* ---------- shaders ---------- */
+const MAX_LIGHTS = 12;
+const GLSL_COMMON = `
+precision highp float;
+precision highp sampler2D;
+const float PI = 3.14159265359;
+uniform vec4 uLights[${MAX_LIGHTS}];      // xyz pos, w radius
+uniform vec4 uLightColor[${MAX_LIGHTS}];  // rgb color, a intensity
+uniform int  uLightCount;
+uniform vec3 uCamPos;
+uniform vec3 uFogColor;
+uniform float uFogDensity;
+uniform vec3 uAmbient;
+uniform float uTime;
+vec3 applyLighting(vec3 wp, vec3 N, vec3 albedo, float metal, float emissive) {
+  vec3 col = albedo * uAmbient;
+  for (int i = 0; i < ${MAX_LIGHTS}; i++) {
+    if (i >= uLightCount) break;
+    vec3 lp = uLights[i].xyz;
+    float lr = uLights[i].w;
+    vec3 lc = uLightColor[i].rgb * uLightColor[i].a;
+    vec3 ld = lp - wp;
+    float dist = length(ld);
+    float att = clamp(1.0 - dist / lr, 0.0, 1.0);
+    att = att * att;
+    vec3 ln = ld / max(dist, 1e-4);
+    float diff = max(dot(N, ln), 0.0);
+    float spec = pow(max(dot(reflect(-N, ln), normalize(uCamPos - wp)), 0.0), 24.0) * metal;
+    col += albedo * lc * att * (diff * 0.9 + 0.12) + vec3(spec) * lc * att * 0.5;
+  }
+  // distance fog
+  float fd = length(uCamPos - wp);
+  float fog = 1.0 - exp(-uFogDensity * uFogDensity * fd * fd);
+  col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
+  if (emissive > 0.001) col += albedo * emissive * 1.6;
+  return col;
+}
+`;
+
+const VS_WORLD = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in vec2 aUV;
+layout(location=3) in float aTile;
+layout(location=4) in float aMat;
+uniform mat4 uProj, uView;
+out vec3 vNormal; out vec2 vUV; out vec3 vWorldPos; out float vMat;
+void main(){
+  vec4 wp = vec4(aPos, 1.0);
+  vWorldPos = wp.xyz;
+  vNormal = aNormal;
+  float ts = 1.0/8.0;
+  vec2 tile = vec2(mod(aTile, 8.0) * ts, floor(aTile / 8.0) * ts);
+  vUV = tile + aUV * ts;
+  vMat = aMat;
+  gl_Position = uProj * uView * wp;
+}`;
+
+const FS_WORLD = `#version 300 es
+${GLSL_COMMON}
+in vec3 vNormal; in vec2 vUV; in vec3 vWorldPos; in float vMat;
+uniform sampler2D uAtlas;
+uniform vec4 uMatProps[16];
+out vec4 frag;
+void main(){
+  vec4 tex = texture(uAtlas, vUV);
+  vec3 albedo = tex.rgb;
+  int mi = int(vMat + 0.5);
+  vec4 mp = uMatProps[mi];
+  float metal = mp.x, emissive = mp.y, nrm = mp.z, wet = mp.w;
+  vec3 N = normalize(vNormal);
+  vec3 col = applyLighting(vWorldPos, N, albedo, metal, emissive);
+  frag = vec4(col, 1.0);
+}`;
+
+const VS_ACTOR = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in vec2 aUV;
+layout(location=3) in float aTile;
+layout(location=4) in float aMat;
+layout(location=5) in vec3 aTint;
+uniform mat4 uProj, uView;
+out vec3 vNormal; out vec2 vUV; out vec3 vWorldPos; out float vMat; out vec3 vTint;
+void main(){
+  vec4 wp = vec4(aPos, 1.0);
+  vWorldPos = wp.xyz;
+  vNormal = aNormal;
+  float ts = 1.0/8.0;
+  vec2 tile = vec2(mod(aTile, 8.0) * ts, floor(aTile / 8.0) * ts);
+  vUV = tile + aUV * ts;
+  vMat = aMat;
+  vTint = aTint;
+  gl_Position = uProj * uView * wp;
+}`;
+
+const FS_ACTOR = `#version 300 es
+${GLSL_COMMON}
+in vec3 vNormal; in vec2 vUV; in vec3 vWorldPos; in float vMat; in vec3 vTint;
+uniform sampler2D uAtlas;
+uniform vec4 uMatProps[16];
+out vec4 frag;
+void main(){
+  vec4 tex = texture(uAtlas, vUV);
+  vec3 albedo = tex.rgb * vTint;
+  int mi = int(vMat + 0.5);
+  vec4 mp = uMatProps[mi];
+  vec3 N = normalize(vNormal);
+  vec3 col = applyLighting(vWorldPos, N, albedo, mp.x, mp.y);
+  frag = vec4(col, 1.0);
+}`;
+
+const VS_PART = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aColor;
+layout(location=2) in float aSize;
+uniform mat4 uProj, uView;
+uniform float uPixelRatio;
+out vec3 vColor;
+void main(){
+  vec4 vp = uView * vec4(aPos, 1.0);
+  gl_Position = uProj * vp;
+  gl_PointSize = clamp(aSize / max(-vp.z, 0.1) * 300.0 * uPixelRatio, 1.0, 64.0);
+  vColor = aColor;
+}`;
+const FS_PART = `#version 300 es
+precision mediump float;
+in vec3 vColor;
+out vec4 frag;
+void main(){
+  vec2 c = gl_PointCoord - 0.5;
+  float d = length(c);
+  float a = smoothstep(0.5, 0.0, d);
+  frag = vec4(vColor, a);
+}`;
+
+/* ---------- post pipeline ---------- */
+const VS_FS = `#version 300 es
+layout(location=0) in vec2 aPos;
+out vec2 vUV;
+void main(){ vUV = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+const FS_BRIGHT = `#version 300 es
+precision mediump float;
+in vec2 vUV; uniform sampler2D uTex; uniform float uThresh;
+out vec4 frag;
+void main(){ vec3 c = texture(uTex, vUV).rgb; float l = dot(c, vec3(0.299,0.587,0.114)); frag = vec4(c * smoothstep(uThresh, uThresh+0.5, l), 1.0); }`;
+const FS_BLUR = `#version 300 es
+precision mediump float;
+in vec2 vUV; uniform sampler2D uTex; uniform vec2 uDir;
+out vec4 frag;
+void main(){
+  vec3 s = texture(uTex, vUV).rgb * 0.227;
+  s += texture(uTex, vUV + uDir * 1.3846).rgb * 0.316;
+  s += texture(uTex, vUV - uDir * 1.3846).rgb * 0.316;
+  s += texture(uTex, vUV + uDir * 3.2308).rgb * 0.075;
+  s += texture(uTex, vUV - uDir * 3.2308).rgb * 0.075;
+  frag = vec4(s, 1.0);
+}`;
+const FS_POST = `#version 300 es
+precision highp float;
+in vec2 vUV;
+uniform sampler2D uScene, uBloom;
+uniform vec2 uRes;
+uniform float uTime, uVignette, uGrain, uSanity, uDamage, uExposure;
+out vec4 frag;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+void main(){
+  vec2 uv = vUV;
+  // sanity distortion (warp near edges when sanity low)
+  float warp = (1.0 - uSanity) * 0.012;
+  vec2 d = uv - 0.5;
+  uv += d * warp * (1.0 + 0.5 * sin(uTime * 3.0 + d.x * 20.0));
+  vec3 c = texture(uScene, uv).rgb;
+  c += texture(uBloom, uv).rgb * 0.9;
+  // exposure + tone
+  c *= uExposure;
+  c = c / (c + vec3(0.85));
+  c = pow(c, vec3(0.4545));
+  // color grade: cool shadows, warm highlights, desaturate slightly
+  float l = dot(c, vec3(0.299,0.587,0.114));
+  c = mix(c, vec3(l), 0.12);
+  c = mix(c * vec3(0.92,0.95,1.08), c * vec3(1.06,1.0,0.92), smoothstep(0.2,0.9,l));
+  // vignette
+  float vg = smoothstep(0.95, 0.35, length(d) * 1.3);
+  c *= mix(1.0, vg, uVignette);
+  // damage red pulse
+  c = mix(c, c * vec3(1.3,0.5,0.5), uDamage * 0.5);
+  // film grain
+  c += (hash(uv * uRes + uTime) - 0.5) * uGrain;
+  frag = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+/* ---------- first-person viewmodel (revolver + torch) ---------- */
+const VS_HAND = `#version 300 es
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in vec2 aUV;
+layout(location=3) in float aTile;
+layout(location=4) in float aMat;
+uniform mat4 uProj, uModel;
+out vec3 vNormal; out vec2 vUV; out vec3 vWorldPos; out float vMat;
+void main(){
+  // viewmodel lives in camera space: fixed in front of the eyes,
+  // so it does NOT rotate with camera yaw/pitch.
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  vWorldPos = wp.xyz;
+  vNormal = mat3(uModel) * aNormal;
+  float ts = 1.0/8.0;
+  vec2 tile = vec2(mod(aTile, 8.0) * ts, floor(aTile / 8.0) * ts);
+  vUV = tile + aUV * ts;
+  vMat = aMat;
+  gl_Position = uProj * wp;
+}`;
+const FS_HAND = `#version 300 es
+precision highp float;
+in vec3 vNormal; in vec2 vUV; in vec3 vWorldPos; in float vMat;
+uniform sampler2D uAtlas;
+out vec4 frag;
+void main(){
+  vec4 tex = texture(uAtlas, vUV);
+  vec3 N = normalize(vNormal);
+  // viewmodel lit by a fixed warm key light + torch fill
+  vec3 key = normalize(vec3(0.4, 0.8, 0.6));
+  vec3 fill = normalize(vec3(-0.5, 0.2, 0.3));
+  float d1 = max(dot(N, key), 0.0), d2 = max(dot(N, fill), 0.0);
+  vec3 col = tex.rgb * (vec3(0.25) + vec3(1.0,0.9,0.75) * d1 * 0.9 + vec3(0.6,0.4,0.3) * d2 * 0.4);
+  frag = vec4(col, 1.0);
+}`;
+
+/* ---------- render targets ---------- */
+function RT(w, h, opts) {
+  const gl = GLC.gl, o = opts || {};
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  let color = null, depth = null;
+  const hdr = o.hdr && GLC.floatOK;
+  const internal = hdr ? gl.RGBA16F : gl.RGBA8;
+  const type = hdr ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+  color = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, color);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, gl.RGBA, type, null);
+  const filt = o.nearest ? gl.NEAREST : gl.LINEAR;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, color, 0);
+  if (o.depth) {
+    depth = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (st !== gl.FRAMEBUFFER_COMPLETE && hdr) {
+    // fallback to LDR
+    gl.deleteTexture(color);
+    color = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, color);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, color, 0);
+  }
+  return { fbo, tex: color, depth, w, h,
+    bind() { gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo); gl.viewport(0, 0, this.w, this.h); },
+    unbind() { gl.bindFramebuffer(gl.FRAMEBUFFER, null); } };
+}
+let _fsVao = null;
+function drawFullscreen() {
+  const gl = GLC.gl;
+  if (!_fsVao) {
+    _fsVao = gl.createVertexArray();
+    gl.bindVertexArray(_fsVao);
+    const b = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  }
+  gl.bindVertexArray(_fsVao);
+}
+
+/* ---------- the Renderer ---------- */
+const Renderer = {
+  canvas: null, gl: null,
+  progs: {}, atlas: null,
+  sceneRT: null, brightRT: null, blurA: null, blurB: null,
+  worldMesh: null,
+  proj: m4(), view: m4(), viewInv: m4(),
+  lights: [], // {x,y,z,r, cr,cg,cb, i}
+  pixelRatio: 1,
+  // viewmodel state
+  vm: { recoil: 0, sway: 0, bob: 0, reload: 0, melee: 0, flash: 0 },
+
+  init(canvas) {
+    this.canvas = canvas;
+    this.gl = glInit(canvas);
+    const gl = this.gl;
+    initMats();
+    initGeo();
+    initActorMesh();
+    this.atlas = buildAtlas();
+    this.progs.world = Program(VS_WORLD, FS_WORLD, "world");
+    this.progs.actor = Program(VS_ACTOR, FS_ACTOR, "actor");
+    this.progs.part = Program(VS_PART, FS_PART, "part");
+    this.progs.bright = Program(VS_FS, FS_BRIGHT, "bright");
+    this.progs.blur = Program(VS_FS, FS_BLUR, "blur");
+    this.progs.post = Program(VS_FS, FS_POST, "post");
+    this.progs.hand = Program(VS_HAND, FS_HAND, "hand");
+    this.resize();
+  },
+  resize() {
+    const gl = this.gl;
+    const dpr = this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = Math.max(2, Math.floor(this.canvas.clientWidth * dpr));
+    const h = Math.max(2, Math.floor(this.canvas.clientHeight * dpr));
+    this.canvas.width = w; this.canvas.height = h;
+    const bw = Math.max(2, Math.floor(w / 2)), bh = Math.max(2, Math.floor(h / 2));
+    if (this.sceneRT) this.sceneRT.dispose && this.sceneRT.dispose();
+    this.sceneRT = RT(w, h, { depth: true, hdr: true });
+    this.brightRT = RT(bw, bh, {});
+    this.blurA = RT(bw, bh, {});
+    this.blurB = RT(bw, bh, {});
+    m4persp(this.proj, 62 * DEG, w / h, 0.05, 120);
+  },
+  setLights(list) { this.lights = list; },
+  setWorld(mesh) { this.worldMesh = mesh; },
+
+  beginScene() {
+    const gl = this.gl;
+    this.sceneRT.bind();
+    gl.viewport(0, 0, this.sceneRT.w, this.sceneRT.h);
+    gl.clear(gl.COLOR_BIT_MASK | gl.DEPTH_BIT_MASK);
+    gl.disable(gl.BLEND);
+  },
+  drawWorld() {
+    const gl = this.gl, p = this.progs.world;
+    gl.useProgram(p.p);
+    gl.uniformMatrix4fv(p.U.uProj, false, this.proj);
+    gl.uniformMatrix4fv(p.U.uView, false, this.view);
+    gl.uniform3f(p.U.uCamPos, this.viewInv[12], this.viewInv[13], this.viewInv[14]);
+    gl.uniform3fv(p.U.uFogColor, FOG_COLOR);
+    gl.uniform1f(p.U.uFogDensity, FOG_DENSITY);
+    gl.uniform3fv(p.U.uAmbient, AMBIENT);
+    gl.uniform1f(p.U.uTime, this.time);
+    this.uploadLights(p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.atlas);
+    gl.uniform1i(p.U.uAtlas, 0);
+    gl.uniform4fv(p.U.uMatProps, MAT_PROPS);
+    gl.bindVertexArray(this.worldMesh.vao);
+    gl.drawElements(gl.TRIANGLES, this.worldMesh.count, gl.UNSIGNED_INT, 0);
+  },
+  drawActors(arr) {
+    const gl = this.gl, p = this.progs.actor;
+    if (arr.length === 0) return;
+    gl.useProgram(p.p);
+    gl.uniformMatrix4fv(p.U.uProj, false, this.proj);
+    gl.uniformMatrix4fv(p.U.uView, false, this.view);
+    gl.uniform3fv(p.U.uCamPos, [this.viewInv[12], this.viewInv[13], this.viewInv[14]]);
+    gl.uniform3fv(p.U.uFogColor, FOG_COLOR);
+    gl.uniform1f(p.U.uFogDensity, FOG_DENSITY);
+    gl.uniform3fv(p.U.uAmbient, AMBIENT);
+    gl.uniform1f(p.U.uTime, this.time);
+    this.uploadLights(p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.atlas);
+    gl.uniform1i(p.U.uAtlas, 0);
+    gl.uniform4fv(p.U.uMatProps, MAT_PROPS);
+    actorMesh.update(arr);
+    gl.bindVertexArray(actorMesh.vao);
+    gl.drawArrays(gl.TRIANGLES, 0, actorMesh.count);
+  },
+  drawParticles(arr) {
+    const gl = this.gl, p = this.progs.part;
+    if (arr.length === 0) return;
+    gl.useProgram(p.p);
+    gl.uniformMatrix4fv(p.U.uProj, false, this.proj);
+    gl.uniformMatrix4fv(p.U.uView, false, this.view);
+    gl.uniform1f(p.U.uPixelRatio, this.pixelRatio);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.depthMask(false);
+    const data = new Float32Array(arr.length * 7);
+    for (let i = 0; i < arr.length; i++) { const pt = arr[i]; const o = i * 7; data[o] = pt.x; data[o + 1] = pt.y; data[o + 2] = pt.z; data[o + 3] = pt.r; data[o + 4] = pt.g; data[o + 5] = pt.b; data[o + 6] = pt.s; }
+    const vao = this._partVao || (this._partVao = this._makePartVao());
+    gl.bindVertexArray(vao.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vao.vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
+    gl.drawArrays(gl.POINTS, 0, arr.length);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+  },
+  _makePartVao() {
+    const gl = this.gl;
+    const vao = gl.createVertexArray(), vbo = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
+    gl.bindVertexArray(null);
+    return { vao, vbo };
+  },
+  drawViewmodel() {
+    const gl = this.gl, p = this.progs.hand;
+    const m = m4();
+    const vm = this.vm;
+    // camera-relative model: right hand, low
+    const bobX = sin(this.time * 2.2) * vm.bob * 0.02;
+    const bobY = -abs(cos(this.time * 2.2)) * vm.bob * 0.03;
+    const recoilZ = vm.recoil * 0.14;
+    const reloadY = -vm.reload * 0.5;
+    const meleeZ = -vm.melee * 0.2;
+    m4fromEuler(m, 0.34 + bobX, -0.42 + bobY + reloadY, -0.72 + recoilZ + meleeZ,
+      vm.sway * 0.02, 0.06 + vm.recoil * 0.2, 0);
+    gl.useProgram(p.p);
+    gl.uniformMatrix4fv(p.U.uProj, false, this.proj);
+    gl.uniformMatrix4fv(p.U.uModel, false, m);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.atlas);
+    gl.uniform1i(p.U.uAtlas, 0);
+    // build a small revolver + hand mesh on the fly (10 floats/vert: pos,nrm,uv,tile,mat)
+    const out = [];
+    pushWorldMesh(GEO.cylNI, 0, 0, 0, 0, 0.09, 0.5, 0.09, T_METAL, MAT.METAL, out); // barrel
+    pushWorldMesh(GEO.boxNI, 0, -0.14, 0.02, 0, 0.1, 0.22, 0.1, T_METAL, MAT.METAL, out); // frame
+    pushWorldMesh(GEO.boxNI, 0, -0.3, 0.06, 0.3, 0.08, 0.2, 0.08, T_WOOD, MAT.WOOD, out); // grip
+    pushWorldMesh(GEO.boxNI, 0.02, -0.02, 0.05, 0, 0.14, 0.06, 0.16, T_BONE, MAT.BONE, out); // hand
+    const data = new Float32Array(out);
+    if (!this._vmVao) {
+      this._vmVao = gl.createVertexArray(); this._vmVbo = gl.createBuffer();
+      gl.bindVertexArray(this._vmVao); gl.bindBuffer(gl.ARRAY_BUFFER, this._vmVbo);
+      for (const l of LAYOUT_WORLD) { gl.enableVertexAttribArray(l.loc); gl.vertexAttribPointer(l.loc, l.n, gl.FLOAT, false, 10 * 4, l.loc * 4); }
+      gl.bindVertexArray(null);
+    }
+    gl.bindVertexArray(this._vmVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this._vmVbo);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES, 0, data.length / 10);
+  },
+  endScene() {
+    this.sceneRT.unbind();
+  },
+  uploadLights(p) {
+    const gl = this.gl;
+    const L = this.lights, n = Math.min(L.length, MAX_LIGHTS);
+    const lp = new Float32Array(MAX_LIGHTS * 4), lc = new Float32Array(MAX_LIGHTS * 4);
+    for (let i = 0; i < MAX_LIGHTS; i++) {
+      if (i < n) { lp[i * 4] = L[i].x; lp[i * 4 + 1] = L[i].y; lp[i * 4 + 2] = L[i].z; lp[i * 4 + 3] = L[i].r; lc[i * 4] = L[i].cr; lc[i * 4 + 1] = L[i].cg; lc[i * 4 + 2] = L[i].cb; lc[i * 4 + 3] = L[i].i; }
+    }
+    gl.uniform4fv(p.U.uLights, lp);
+    gl.uniform4fv(p.U.uLightColor, lc);
+    gl.uniform1i(p.U.uLightCount, n);
+  },
+  post(sanity, damage, grain, vignette, exposure) {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    // bright pass
+    gl.useProgram(this.progs.bright.p);
+    drawFullscreen();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneRT.tex);
+    gl.uniform1i(this.progs.bright.U.uTex, 0);
+    gl.uniform1f(this.progs.bright.U.uThresh, 0.7);
+    this.brightRT.bind();
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // blur H
+    gl.useProgram(this.progs.blur.p);
+    gl.bindTexture(gl.TEXTURE_2D, this.brightRT.tex);
+    gl.uniform1i(this.progs.blur.U.uTex, 0);
+    gl.uniform2f(this.progs.blur.U.uDir, 1 / this.brightRT.w, 0);
+    this.blurA.bind();
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // blur V
+    gl.bindTexture(gl.TEXTURE_2D, this.blurA.tex);
+    gl.uniform2f(this.progs.blur.U.uDir, 0, 1 / this.brightRT.h);
+    this.blurB.bind();
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // composite
+    gl.useProgram(this.progs.post.p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneRT.tex);
+    gl.uniform1i(this.progs.post.U.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.blurB.tex);
+    gl.uniform1i(this.progs.post.U.uBloom, 1);
+    gl.uniform2f(this.progs.post.U.uRes, this.canvas.width, this.canvas.height);
+    gl.uniform1f(this.progs.post.U.uTime, this.time);
+    gl.uniform1f(this.progs.post.U.uVignette, vignette);
+    gl.uniform1f(this.progs.post.U.uGrain, grain);
+    gl.uniform1f(this.progs.post.U.uSanity, sanity);
+    gl.uniform1f(this.progs.post.U.uDamage, damage);
+    gl.uniform1f(this.progs.post.U.uExposure, exposure);
+    drawFullscreen();
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  },
+};
+const FOG_COLOR = [0.012, 0.014, 0.022];
+const FOG_DENSITY = 0.05;
+const AMBIENT = [0.09, 0.09, 0.12];
+
+/* ============================================================= *
+ *  PROCEDURAL DUNGEON GENERATION
+ *  Seeded room-and-corridor layout. Each floor is a grid of tiles.
+ *  Tiles carry wall flags, floor/wall tiles, and props.
+ * ============================================================= */
+const FLOOR_NAMES = ["The Threshold", "The Drowned Halls", "The Bone Gallery", "The Choir's Throat", "The Hollow Choir"];
+const TILE_EMPTY = 0, TILE_FLOOR = 1, TILE_WALL = 2;
+
+function generateFloor(floorNum, rng) {
+  const size = 24 + floorNum * 2; // grows with depth
+  const grid = new Uint8Array(size * size);
+  const tiles = []; // per-tile data for meshing
+  const inb = (x, z) => x >= 0 && z >= 0 && x < size && z < size;
+  const set = (x, z, v) => { if (inb(x, z)) grid[z * size + x] = v; };
+  const get = (x, z) => inb(x, z) ? grid[z * size + x] : TILE_WALL;
+
+  // start with all walls
+  for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) set(x, z, TILE_WALL);
+
+  // carve rooms
+  const rooms = [];
+  const roomCount = 6 + floorNum * 2 + rng.int(0, 3);
+  for (let i = 0; i < roomCount; i++) {
+    const w = rng.int(4, 8), h = rng.int(4, 8);
+    const x = rng.int(1, size - w - 1), z = rng.int(1, size - h - 1);
+    for (let dz = 0; dz < h; dz++) for (let dx = 0; dx < w; dx++) set(x + dx, z + dz, TILE_FLOOR);
+    rooms.push({ x, z, w, h, cx: x + (w >> 1), cz: z + (h >> 1) });
+  }
+  // connect rooms with L corridors
+  for (let i = 1; i < rooms.length; i++) {
+    const a = rooms[i - 1], b = rooms[i];
+    let cx = a.cx, cz = a.cz;
+    while (cx !== b.cx) { set(cx, cz, TILE_FLOOR); cx += cx < b.cx ? 1 : -1; }
+    while (cz !== b.cz) { set(cx, cz, TILE_FLOOR); cz += cz < b.cz ? 1 : -1; }
+  }
+
+  // build tile records with wall flags
+  const props = [];
+  const floorTile = floorNum >= 3 ? T_BLOOD : T_FLOOR;
+  const wallTile = floorNum >= 4 ? T_BRICK : T_WALL;
+  for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) {
+    const t = get(x, z);
+    const rec = { x, z, floor: false, wallN: false, wallS: false, wallW: false, wallE: false, floorTile, floorMat: MAT.FLOOR, wallTile, wallMat: MAT.WALL };
+    if (t === TILE_FLOOR) {
+      rec.floor = true;
+      // wall where neighbor is wall
+      if (get(x, z - 1) === TILE_WALL) rec.wallN = true;
+      if (get(x, z + 1) === TILE_WALL) rec.wallS = true;
+      if (get(x - 1, z) === TILE_WALL) rec.wallW = true;
+      if (get(x + 1, z) === TILE_WALL) rec.wallE = true;
+      // occasional moss / blood floor variation
+      if (rng.chance(0.06)) { rec.floorTile = T_MOSS; rec.floorMat = MAT.MOSS; }
+      else if (floorNum >= 2 && rng.chance(0.05)) { rec.floorTile = T_BLOOD; rec.floorMat = MAT.BLOOD; }
+    }
+    tiles.push(rec);
+  }
+
+  // place props in rooms (pillars, crates, torches, runes)
+  for (const r of rooms) {
+    const nPillars = rng.int(0, 3);
+    for (let i = 0; i < nPillars; i++) {
+      const px = r.x + rng.int(1, r.w - 2), pz = r.z + rng.int(1, r.h - 2);
+      if (get(px, pz) === TILE_FLOOR) props.push({ type: "pillar", x: px + .5, z: pz + .5, r: .35, tile: T_WALL, mat: MAT.WALL });
+    }
+    const nCrates = rng.int(0, 3);
+    for (let i = 0; i < nCrates; i++) {
+      const px = r.x + rng.int(0, r.w - 1), pz = r.z + rng.int(0, r.h - 1);
+      if (get(px, pz) === TILE_FLOOR) props.push({ type: "crate", x: px + .5, z: pz + .5, s: .7, rot: rng.chance(.5) ? 0 : HALFPI, tile: T_WOOD, mat: MAT.WOOD });
+    }
+    // torches on walls around the room
+    for (let i = 0; i < 2; i++) {
+      const side = rng.int(0, 3);
+      let tx, tz;
+      if (side === 0) { tx = r.x + rng.int(0, r.w - 1) + .5; tz = r.z; }
+      else if (side === 1) { tx = r.x + rng.int(0, r.w - 1) + .5; tz = r.z + r.h; }
+      else if (side === 2) { tx = r.x; tz = r.z + rng.int(0, r.h - 1) + .5; }
+      else { tx = r.x + r.w; tz = r.z + rng.int(0, r.h - 1) + .5; }
+      props.push({ type: "torch", x: tx, z: tz });
+    }
+    // occasional rune wall
+    if (rng.chance(0.4)) {
+      const side = rng.int(0, 3);
+      let rx, rz;
+      if (side === 0) { rx = r.x + rng.int(0, r.w - 1) + .5; rz = r.z; }
+      else if (side === 1) { rx = r.x + rng.int(0, r.w - 1) + .5; rz = r.z + r.h; }
+      else if (side === 2) { rx = r.x; rz = r.z + rng.int(0, r.h - 1) + .5; }
+      else { rx = r.x + r.w; rz = r.z + rng.int(0, r.h - 1) + .5; }
+      props.push({ type: "rune", x: rx, z: rz });
+    }
+  }
+
+  // stairs down (in last room) + spawn (in first room)
+  const spawnRoom = rooms[0];
+  const exitRoom = rooms[rooms.length - 1];
+  const spawn = { x: spawnRoom.cx + .5, z: spawnRoom.cz + .5 };
+  let exit = { x: exitRoom.cx + .5, z: exitRoom.cz + .5, type: floorNum >= 5 ? "boss" : "stairs" };
+  if (exit.type === "stairs") props.push({ type: "stairs", x: exit.x, z: exit.z, tile: T_RUNE, mat: MAT.RUNE });
+  else props.push({ type: "altar", x: exit.x, z: exit.z, tile: T_BONE, mat: MAT.BONE });
+
+  // collision grid (1 = solid)
+  const solid = new Uint8Array(size * size);
+  for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) {
+    const t = get(x, z);
+    if (t === TILE_WALL) solid[z * size + x] = 1;
+  }
+  for (const p of props) {
+    if (p.type === "pillar" || p.type === "crate") {
+      const cx = floor(p.x), cz = floor(p.z);
+      if (inb(cx, cz)) solid[cz * size + cx] = 1;
+    }
+  }
+
+  return { size, grid, tiles, props, spawn, exit, solid, rooms, floorNum };
+}
+
+/* ============================================================= *
+ *  GAME STATE + ENTITIES + RPG
+ * ============================================================= */
+const Game = {
+  state: "title", // title | playing | paused | levelup | death | victory
+  seed: null, rng: null,
+  floor: null, floorNum: 1,
+  player: null,
+  enemies: [], projectiles: [], pickups: [], particles: [],
+  lights: [],
+  time: 0, runTime: 0,
+  kills: 0, gold: 0,
+  boss: null,
+  shake: 0,
+  damageFlash: 0,
+  // pools
+  _projPool: [], _pickPool: [],
+};
+
+/* ---------- player ---------- */
+function makePlayer(x, z) {
+  return {
+    x, z, y: 0,
+    vx: 0, vz: 0,
+    yaw: 0, pitch: 0,
+    r: 0.35,
+    hp: 100, maxHp: 100,
+    sanity: 100, maxSanity: 100,
+    stamina: 100, maxStamina: 100,
+    level: 1, xp: 0, xpNext: 40,
+    // base stats (modified by equipment + boons)
+    stats: { str: 5, vit: 5, agi: 5, int: 5, luck: 5 },
+    // derived
+    derived: {},
+    // weapon
+    weapon: { name: "The Last Round", dmg: 42, pierce: true, speed: 1.0, ammo: 1, reserve: 4, reloadTime: 2.6, reloading: 0, fireCd: 0 },
+    // equipment
+    equip: { weapon: null, armor: null, ring1: null, ring2: null },
+    inventory: [],
+    // skills
+    skills: [
+      { name: "Adrenaline", key: "1", cd: 0, cdMax: 12, ico: "⚡", desc: "Surge of speed and focus." },
+      { name: "Hellfire", key: "2", cd: 0, cdMax: 18, ico: "☄", desc: "Blast of flame around you." },
+      { name: "Mend", key: "3", cd: 0, cdMax: 20, ico: "✚", desc: "Restore vigor and sanity." },
+    ],
+    // movement
+    moving: false, sprinting: false, stepT: 0,
+    // combat
+    meleeCd: 0, meleeAnim: 0,
+    invuln: 0,
+    // torch
+    torch: 1.0,
+    // flags
+    dead: false,
+  };
+}
+function recomputeDerived(p) {
+  const s = p.stats;
+  let str = s.str, vit = s.vit, agi = s.agi, int = s.int, luck = s.luck;
+  // equipment bonuses
+  for (const slot of ["weapon", "armor", "ring1", "ring2"]) {
+    const it = p.equip[slot];
+    if (it && it.bonus) { str += it.bonus.str || 0; vit += it.bonus.vit || 0; agi += it.bonus.agi || 0; int += it.bonus.int || 0; luck += it.bonus.luck || 0; }
+  }
+  p.derived = {
+    str, vit, agi, int, luck,
+    maxHp: 60 + vit * 6,
+    maxSanity: 60 + int * 4,
+    maxStamina: 60 + agi * 4,
+    moveSpeed: 3.2 + agi * 0.12,
+    meleeDmg: 8 + str * 2.2,
+    meleeRange: 1.6 + str * 0.02,
+    xpNext: Math.floor(40 * Math.pow(1.35, p.level - 1)),
+    critChance: 0.05 + luck * 0.01,
+    dmgReduction: clamp01(vit * 0.008),
+  };
+  p.maxHp = p.derived.maxHp;
+  p.maxSanity = p.derived.maxSanity;
+  p.maxStamina = p.derived.maxStamina;
+  p.xpNext = p.derived.xpNext;
+}
+
+/* ---------- enemies ---------- */
+const ENEMY_TYPES = {
+  wraith: { hp: 26, speed: 2.6, dmg: 8, xp: 14, r: 0.4, tile: T_BONE, mat: MAT.ENEMY, tint: [0.55, 0.6, 0.75], scale: [0.7, 1.1, 0.7], kind: "wraith", aggro: 9, attackCd: 1.1, attackRange: 1.4 },
+  brute: { hp: 70, speed: 1.7, dmg: 16, xp: 30, r: 0.55, tile: T_BLOOD, mat: MAT.ENEMY, tint: [0.7, 0.3, 0.28], scale: [1.1, 1.4, 1.1], kind: "brute", aggro: 11, attackCd: 1.6, attackRange: 1.7 },
+  crawler: { hp: 18, speed: 3.4, dmg: 6, xp: 10, r: 0.35, tile: T_MOSS, mat: MAT.ENEMY, tint: [0.4, 0.6, 0.35], scale: [0.6, 0.5, 0.6], kind: "crawler", aggro: 12, attackCd: 0.8, attackRange: 1.2 },
+  boss: { hp: 420, speed: 2.1, dmg: 24, xp: 400, r: 0.9, tile: T_BONE, mat: MAT.ENEMY, tint: [0.85, 0.75, 0.5], scale: [1.8, 2.4, 1.8], kind: "boss", aggro: 30, attackCd: 1.4, attackRange: 2.4 },
+};
+function makeEnemy(type, x, z, floorNum) {
+  const t = ENEMY_TYPES[type];
+  const scale = 1 + (floorNum - 1) * 0.18;
+  return {
+    type, x, z, y: 0, vx: 0, vz: 0, yaw: 0,
+    r: t.r,
+    hp: Math.floor(t.hp * scale), maxHp: Math.floor(t.hp * scale),
+    speed: t.speed * (1 + (floorNum - 1) * 0.05),
+    dmg: t.dmg * (1 + (floorNum - 1) * 0.12),
+    xp: t.xp, r2: t.r,
+    tile: t.tile, mat: t.mat, tint: t.tint.slice(), scale: t.scale.slice(), kind: t.kind,
+    aggro: t.aggro, attackCd: t.attackCd, attackRange: t.attackRange,
+    state: "idle", // idle | wander | chase | attack | stagger
+    wanderT: 0, wanderDir: 0,
+    attackTimer: 0, stagger: 0,
+    hitFlash: 0, dead: false,
+    bob: Math.random() * TAU,
+  };
+}
+
+/* ---------- projectiles ---------- */
+function makeProjectile(x, y, z, dx, dz, dmg, pierce, fromPlayer) {
+  return { x, y, z, dx, dz, dmg, pierce, fromPlayer, life: 2.2, hit: [], speed: 26 };
+}
+
+/* ---------- pickups ---------- */
+const PICKUP_TYPES = {
+  health: { tile: T_BLOOD, mat: MAT.PICKUP, tint: [0.9, 0.3, 0.3], scale: [0.4, 0.4, 0.4], geo: "box", label: "Vigor" },
+  ammo: { tile: T_METAL, mat: MAT.PICKUP, tint: [0.8, 0.7, 0.4], scale: [0.35, 0.35, 0.35], geo: "cyl", label: "Rounds" },
+  light: { tile: T_TORCH, mat: MAT.PICKUP, tint: [1, 0.8, 0.4], scale: [0.4, 0.5, 0.4], geo: "cyl", label: "Torch" },
+  sanity: { tile: T_CRYSTAL, mat: MAT.PICKUP, tint: [0.4, 0.8, 0.9], scale: [0.4, 0.4, 0.4], geo: "ico", label: "Clarity" },
+  gold: { tile: T_RUNE, mat: MAT.PICKUP, tint: [1, 0.9, 0.4], scale: [0.3, 0.3, 0.3], geo: "box", label: "Gold" },
+  loot: { tile: T_CRYSTAL, mat: MAT.PICKUP, tint: [0.7, 0.6, 0.9], scale: [0.45, 0.45, 0.45], geo: "ico", label: "Relic" },
+};
+function makePickup(type, x, z, data) {
+  const t = PICKUP_TYPES[type];
+  return { type, x, z, y: 0.5, data: data || null, tile: t.tile, mat: t.mat, tint: t.tint.slice(), scale: t.scale.slice(), geo: t.geo, bob: Math.random() * TAU, dead: false };
+}
+
+/* ---------- particles ---------- */
+function spawnParticle(x, y, z, vx, vy, vz, r, g, b, life, size) {
+  Game.particles.push({ x, y, z, vx, vy, vz, r, g, b, life, maxLife: life, size });
+}
+function burst(x, y, z, n, r, g, b, speed, life, size) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU, e = Math.random() * PI;
+    const sp = speed * (0.3 + Math.random() * 0.7);
+    spawnParticle(x, y, z, cos(a) * cos(e) * sp, sin(e) * sp * 0.5 + 1, sin(a) * cos(e) * sp, r, g, b, life * (0.5 + Math.random() * 0.5), size * (0.5 + Math.random() * 0.7));
+  }
+}
+
+/* ---------- loot generation (RPG) ---------- */
+const RARITIES = [
+  { name: "Common", r: 0, color: [0.7, 0.7, 0.7], mult: 1 },
+  { name: "Uncommon", r: 1, color: [0.5, 0.7, 0.9], mult: 1.3 },
+  { name: "Rare", r: 2, color: [0.4, 0.8, 0.9], mult: 1.7 },
+  { name: "Mythic", r: 3, color: [0.9, 0.75, 0.3], mult: 2.4 },
+];
+const WEAPON_NAMES = ["Choir's Fang", "Warden's Round", "Hollow's Kiss", "Grave's Echo", "Ashen Bolt", "Mourner's Steel", "Drowned Edge", "Rite of Ruin"];
+const ARMOR_NAMES = ["Warden's Plate", "Choir's Shroud", "Grave's Mail", "Hollow's Guard", "Ashen Aegis", "Mourner's Hide"];
+const RING_NAMES = ["Sigil of Vigor", "Ring of Focus", "Band of Haste", "Seal of Fortune", "Charm of the Choir", "Talisman of Ash"];
+function rollRarity(rng, luck) {
+  const l = luck * 0.01;
+  const r = rng();
+  if (r < 0.02 + l * 0.5) return 3;
+  if (r < 0.12 + l) return 2;
+  if (r < 0.45 + l * 1.5) return 1;
+  return 0;
+}
+function genLoot(rng, floorNum, luck) {
+  const rar = rollRarity(rng, luck);
+  const R = RARITIES[rar];
+  const kind = rng.pick(["weapon", "armor", "ring"]);
+  const bonus = {};
+  const statKeys = ["str", "vit", "agi", "int", "luck"];
+  const nStats = 1 + Math.floor(rar / 1.5) + (rng.chance(0.4) ? 1 : 0);
+  for (let i = 0; i < nStats; i++) {
+    const k = rng.pick(statKeys);
+    bonus[k] = (bonus[k] || 0) + Math.ceil(rng.range(1, 2 + floorNum * 0.5) * R.mult);
+  }
+  let item;
+  if (kind === "weapon") {
+    item = { kind: "weapon", name: rng.pick(WEAPON_NAMES), rarity: rar, bonus, dmg: Math.floor((30 + floorNum * 6) * R.mult), pierce: rar >= 2, reloadTime: Math.max(1.4, 2.6 - rar * 0.3), speed: 1 + rar * 0.15 };
+  } else if (kind === "armor") {
+    item = { kind: "armor", name: rng.pick(ARMOR_NAMES), rarity: rar, bonus, armor: Math.floor((4 + floorNum * 2) * R.mult) };
+  } else {
+    item = { kind: "ring", name: rng.pick(RING_NAMES), rarity: rar, bonus };
+  }
+  item.slot = kind === "weapon" ? "weapon" : kind === "armor" ? "armor" : (rng.chance(0.5) ? "ring1" : "ring2");
+  return item;
+}
+
+/* ---------- combat ---------- */
+function damagePlayer(dmg, src) {
+  const p = Game.player;
+  if (p.invuln > 0 || p.dead) return;
+  let d = dmg * (1 - p.derived.dmgReduction);
+  const armor = p.equip.armor ? p.equip.armor.armor || 0 : 0;
+  d = Math.max(1, d - armor * 0.5);
+  p.hp -= d;
+  p.invuln = 0.35;
+  Game.damageFlash = 1;
+  Game.shake = Math.min(1, Game.shake + 0.4);
+  Audio.hurt();
+  spawnDmgText(p.x, p.y + 1.6, p.z, Math.round(d), "dmg");
+  if (p.hp <= 0) { p.hp = 0; killPlayer(); }
+}
+function damageEnemy(e, dmg, isCrit, fromMelee) {
+  if (e.dead) return;
+  e.hp -= dmg;
+  e.hitFlash = 1;
+  e.stagger = Math.max(e.stagger, isCrit ? 0.35 : 0.15);
+  e.state = "chase";
+  spawnDmgText(e.x, e.y + 1.4 + e.scale[1] * 0.5, e.z, Math.round(dmg), isCrit ? "crit" : (fromMelee ? "melee" : "dmg"));
+  burst(e.x, e.y + 0.8, e.z, isCrit ? 14 : 8, 0.8, 0.2, 0.2, 3, 0.5, 0.06);
+  if (e.hp <= 0) killEnemy(e);
+}
+function killEnemy(e) {
+  if (e.dead) return;
+  e.dead = true;
+  Game.kills++;
+  burst(e.x, e.y + 0.8, e.z, 24, 0.7, 0.15, 0.15, 4, 0.8, 0.08);
+  Audio.grunt(e.kind === "boss" ? "boss" : e.kind);
+  // drop loot
+  const p = Game.player;
+  const dropRng = makeRng((Game.seed ^ (Game.kills * 2654435761)) >>> 0);
+  const luck = p.derived.luck;
+  if (e.kind === "boss") {
+    Game.pickups.push(makePickup("loot", e.x, e.z, genLoot(dropRng, Game.floorNum, luck + 5)));
+    Game.pickups.push(makePickup("health", e.x + 0.6, e.z, null));
+    Game.pickups.push(makePickup("ammo", e.x - 0.6, e.z, null));
+  } else {
+    const r = dropRng();
+    if (r < 0.10 + luck * 0.008) Game.pickups.push(makePickup("loot", e.x, e.z, genLoot(dropRng, Game.floorNum, luck)));
+    else if (r < 0.28) Game.pickups.push(makePickup("health", e.x, e.z, null));
+    else if (r < 0.42) Game.pickups.push(makePickup("ammo", e.x, e.z, null));
+    else if (r < 0.52) Game.pickups.push(makePickup("gold", e.x, e.z, { amt: dropRng.int(5, 15 + Game.floorNum * 5) }));
+    else if (r < 0.60) Game.pickups.push(makePickup("light", e.x, e.z, null));
+  }
+  // xp
+  gainXp(e.xp);
+  if (e.kind === "boss") { Game.boss = null; onBossKilled(); }
+}
+function gainXp(amt) {
+  const p = Game.player;
+  p.xp += amt;
+  let leveled = 0;
+  while (p.xp >= p.xpNext) {
+    p.xp -= p.xpNext;
+    p.level++;
+    recomputeDerived(p);
+    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
+    p.sanity = p.maxSanity;
+    leveled++;
+  }
+  if (leveled > 0) {
+    Audio.levelup();
+    Game.pendingBoons = (Game.pendingBoons || 0) + leveled;
+    if (Game.state === "playing") offerBoon();
+  }
+}
+function killPlayer() {
+  const p = Game.player;
+  if (p.dead) return;
+  p.dead = true;
+  Audio.death();
+  Game.state = "death";
+  showHud(false);
+  document.exitPointerLock && document.exitPointerLock();
+  showDeathScreen();
+}
+function onBossKilled() {
+  Audio.victory();
+  Game.state = "victory";
+  showHud(false);
+  document.exitPointerLock && document.exitPointerLock();
+  showVictoryScreen();
+}
+
+/* ---------- boons (level up choices) ---------- */
+const BOONS = [
+  { name: "Iron Vigor", desc: "+20 Max Vigor", apply: p => { p.stats.vit += 2; p.hp += 20; } },
+  { name: "Keen Mind", desc: "+15 Max Sanity, +2 Int", apply: p => { p.stats.int += 2; p.sanity += 15; } },
+  { name: "Swift Step", desc: "+2 Agility (speed & stamina)", apply: p => { p.stats.agi += 2; } },
+  { name: "Heavy Hand", desc: "+2 Strength (melee & crit)", apply: p => { p.stats.str += 2; } },
+  { name: "Lucky Omen", desc: "+2 Luck (loot & crit)", apply: p => { p.stats.luck += 2; } },
+  { name: "Second Wind", desc: "Restore all Vigor & Stamina", apply: p => { p.hp = p.maxHp; p.stamina = p.maxStamina; } },
+  { name: "Loaded Chamber", desc: "+2 reserve rounds", apply: p => { p.weapon.reserve += 2; } },
+  { name: "Quick Draw", desc: "-15% reload time", apply: p => { p.weapon.reloadTime *= 0.85; } },
+];
+function offerBoon() {
+  Game.state = "levelup";
+  const p = Game.player;
+  recomputeDerived(p);
+  const pool = BOONS.slice();
+  const choices = [];
+  for (let i = 0; i < 3; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    choices.push(pool.splice(idx, 1)[0]);
+  }
+  showLevelUp(choices);
+}
+
+/* ---------- floating combat text ---------- */
+const dmgwrap = () => $("dmgwrap");
+function spawnDmgText(x, y, z, val, cls) {
+  // project to screen
+  const p = Game.player;
+  const dx = x - p.x, dy = y - (p.y + 1.6), dz = z - p.z;
+  const cy = cos(p.yaw), sy = sin(p.yaw);
+  // camera basis: forward = (sy, 0, cy)? we use yaw where forward = (sin, cos)
+  const fwd = [sin(p.yaw), 0, cos(p.yaw)];
+  const right = [cos(p.yaw), 0, -sin(p.yaw)];
+  const up = [0, 1, 0];
+  const px = dx * right[0] + dy * right[1] + dz * right[2];
+  const py = dx * up[0] + dy * up[1] + dz * up[2];
+  const pz = dx * fwd[0] + dy * fwd[1] + dz * fwd[2];
+  if (pz < 0.3) return;
+  const fov = 62 * DEG;
+  const aspect = Renderer.canvas.width / Renderer.canvas.height;
+  const sx = (px / pz) / Math.tan(fov / 2) / aspect;
+  const sy2 = (py / pz) / Math.tan(fov / 2);
+  const w = Renderer.canvas.clientWidth, h = Renderer.canvas.clientHeight;
+  const screenX = (0.5 + sx * 0.5) * w;
+  const screenY = (0.5 - sy2 * 0.5) * h;
+  if (screenX < 0 || screenX > w || screenY < 0 || screenY > h) return;
+  const d = el("div", "dmg " + cls, val);
+  d.style.left = screenX + "px";
+  d.style.top = screenY + "px";
+  dmgwrap().appendChild(d);
+  setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 800);
+}
+
+/* ---------- collision ---------- */
+function isSolid(x, z) {
+  const f = Game.floor;
+  if (!f) return false;
+  const cx = Math.floor(x), cz = Math.floor(z);
+  if (cx < 0 || cz < 0 || cx >= f.size || cz >= f.size) return true;
+  return f.solid[cz * f.size + cx] === 1;
+}
+function moveWithCollision(ent, dt) {
+  const speed = Math.hypot(ent.vx, ent.vz);
+  if (speed < 1e-4) return;
+  const nx = ent.x + ent.vx * dt;
+  const nz = ent.z + ent.vz * dt;
+  // X axis
+  if (!isSolid(nx + Math.sign(ent.vx) * ent.r, ent.z)) ent.x = nx;
+  else ent.vx = 0;
+  // Z axis
+  if (!isSolid(ent.x, nz + Math.sign(ent.vz) * ent.r)) ent.z = nz;
+  else ent.vz = 0;
+}
+
+/* ---------- input state ---------- */
+const Input = {
+  keys: {},
+  mouse: { dx: 0, dy: 0, left: false, right: false },
+  locked: false,
+};
+
+/* ---------- main update ---------- */
+function update(dt) {
+  Game.time += dt;
+  if (Game.state !== "playing") {
+    // still decay viewmodel anims
+    decayViewmodel(dt);
+    return;
+  }
+  Game.runTime += dt;
+  const p = Game.player;
+  const f = Game.floor;
+
+  // --- rotation from mouse ---
+  const sens = 0.0022;
+  p.yaw += Input.mouse.dx * sens;
+  p.pitch = clamp(p.pitch - Input.mouse.dy * sens, -HALFPI * 0.9, HALFPI * 0.9);
+  Input.mouse.dx = 0; Input.mouse.dy = 0;
+
+  // --- movement ---
+  let mx = 0, mz = 0;
+  if (Input.keys["KeyW"]) mz += 1;
+  if (Input.keys["KeyS"]) mz -= 1;
+  if (Input.keys["KeyA"]) mx -= 1;
+  if (Input.keys["KeyD"]) mx += 1;
+  const moving = (mx !== 0 || mz !== 0);
+  p.moving = moving;
+  const wantSprint = Input.keys["ShiftLeft"] || Input.keys["ShiftRight"];
+  p.sprinting = wantSprint && moving && p.stamina > 1;
+  let spd = p.derived.moveSpeed;
+  if (p.sprinting) { spd *= 1.55; p.stamina = Math.max(0, p.stamina - 22 * dt); }
+  else p.stamina = Math.min(p.maxStamina, p.stamina + 14 * dt);
+  // adrenaline buff (timed)
+  p.skills[0].buffT = Math.max(0, (p.skills[0].buffT || 0) - dt);
+  const ad = p.skills[0].buffT > 0 ? 1.35 : 1;
+  if (moving) {
+    const cy = cos(p.yaw), sy = sin(p.yaw);
+    // forward = (sin, cos), right = (cos, -sin)
+    let wx = sy * mz + cy * mx;
+    let wz = cy * mz - sy * mx;
+    const l = Math.hypot(wx, wz) || 1;
+    p.vx = wx / l * spd * ad;
+    p.vz = wz / l * spd * ad;
+    p.stepT -= dt * (p.sprinting ? 1.4 : 1);
+    if (p.stepT <= 0) { Audio.step(); p.stepT = p.sprinting ? 0.32 : 0.42; }
+  } else { p.vx = 0; p.vz = 0; }
+  moveWithCollision(p, dt);
+
+  // --- torch fuel ---
+  p.torch = Math.max(0, p.torch - dt * 0.012);
+  // --- sanity: erodes in darkness / near enemies, recovers with light ---
+  const lightLevel = p.torch > 0.05 ? 1 : 0.2;
+  let sanityDrain = 0;
+  if (p.torch <= 0.05) sanityDrain += 2.2;
+  for (const e of Game.enemies) {
+    const d = Math.hypot(e.x - p.x, e.z - p.z);
+    if (d < 4) sanityDrain += (4 - d) * 0.5;
+  }
+  if (sanityDrain > 0) p.sanity = Math.max(0, p.sanity - sanityDrain * dt);
+  else p.sanity = Math.min(p.maxSanity, p.sanity + 3 * lightLevel * dt);
+  // low sanity effects
+  if (p.sanity < 25) Game.shake = Math.max(Game.shake, 0.15);
+
+  // --- weapon ---
+  const w = p.weapon;
+  w.fireCd = Math.max(0, w.fireCd - dt);
+  if (w.reloading > 0) {
+    w.reloading -= dt;
+    if (w.reloading <= 0) {
+      w.reloading = 0;
+      const need = 1 - w.ammo;
+      const take = Math.min(need, w.reserve);
+      w.ammo += take; w.reserve -= take;
+    }
+  }
+  if (Input.mouse.left) {
+    Input.mouse.left = false;
+    tryFire();
+  }
+  if (Input.keys["KeyR"]) { Input.keys["KeyR"] = false; tryReload(); }
+  if (Input.mouse.right) { Input.mouse.right = false; tryMelee(); }
+  p.meleeCd = Math.max(0, p.meleeCd - dt);
+  p.meleeAnim = Math.max(0, p.meleeAnim - dt * 3);
+  p.invuln = Math.max(0, p.invuln - dt);
+
+  // --- skills ---
+  for (let i = 0; i < p.skills.length; i++) {
+    const s = p.skills[i];
+    s.cd = Math.max(0, s.cd - dt);
+    if (Input.keys[s.key]) { Input.keys[s.key] = false; trySkill(i); }
+  }
+
+  // --- enemies ---
+  updateEnemies(dt);
+  // --- projectiles ---
+  updateProjectiles(dt);
+  // --- pickups ---
+  updatePickups(dt);
+  // --- particles ---
+  updateParticles(dt);
+
+  // --- floor exit ---
+  const ex = f.exit;
+  const exd = Math.hypot(ex.x - p.x, ex.z - p.z);
+  if (ex.type === "stairs" && exd < 1.2) descendFloor();
+  if (ex.type === "boss" && !Game.boss && exd < 2.5) spawnBoss();
+
+  // --- viewmodel anims ---
+  decayViewmodel(dt);
+  Game.shake = Math.max(0, Game.shake - dt * 2.5);
+  Game.damageFlash = Math.max(0, Game.damageFlash - dt * 2.5);
+
+  // --- audio heartbeat ---
+  const heartInt = p.hp < 30 ? (30 - p.hp) / 30 : (Game.boss ? 0.5 : 0);
+  Audio.tick(dt, heartInt);
+
+  updateHUD();
+}
+function decayViewmodel(dt) {
+  const vm = Renderer.vm;
+  vm.recoil = Math.max(0, vm.recoil - dt * 4);
+  vm.reload = Math.max(0, vm.reload - dt * 0.6);
+  vm.melee = Math.max(0, vm.melee - dt * 4);
+  vm.flash = Math.max(0, vm.flash - dt * 8);
+  vm.bob = Game.player && Game.player.moving ? 1 : 0;
+  vm.sway = Input.mouse.dx * 0.02;
+}
+
+/* ---------- combat actions ---------- */
+function tryFire() {
+  const p = Game.player, w = p.weapon;
+  if (w.reloading > 0 || w.fireCd > 0) return;
+  if (w.ammo <= 0) { Audio.empty(); w.fireCd = 0.3; return; }
+  w.ammo--;
+  w.fireCd = 0.5 / w.speed;
+  Renderer.vm.recoil = 1;
+  Renderer.vm.flash = 1;
+  Game.shake = Math.min(1, Game.shake + 0.5);
+  Audio.shot();
+  // muzzle light
+  const cy = cos(p.yaw), sy = sin(p.yaw);
+  const mx = p.x + sy * 0.6, mz = p.z + cy * 0.6;
+  // projectile
+  const spread = 0.008;
+  const a = p.yaw + (Math.random() - 0.5) * spread;
+  const dx = sin(a), dz = cos(a);
+  Game.projectiles.push(makeProjectile(mx, 1.5, mz, dx, dz, w.dmg, w.pierce, true));
+  // tracer particles
+  burst(mx, 1.5, mz, 6, 1, 0.8, 0.4, 2, 0.2, 0.05);
+}
+function tryReload() {
+  const p = Game.player, w = p.weapon;
+  if (w.reloading > 0 || w.ammo >= 1 || w.reserve <= 0) return;
+  w.reloading = w.reloadTime;
+  Renderer.vm.reload = 1;
+  Audio.reload();
+}
+function tryMelee() {
+  const p = Game.player;
+  if (p.meleeCd > 0) return;
+  p.meleeCd = 0.5;
+  p.meleeAnim = 1;
+  Renderer.vm.melee = 1;
+  const cy = cos(p.yaw), sy = sin(p.yaw);
+  const fx = p.x + sy * p.derived.meleeRange * 0.6;
+  const fz = p.z + cy * p.derived.meleeRange * 0.6;
+  let hitAny = false;
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    const d = Math.hypot(e.x - fx, e.z - fz);
+    if (d < p.derived.meleeRange * 0.7 + e.r) {
+      const crit = Math.random() < p.derived.critChance;
+      damageEnemy(e, p.derived.meleeDmg * (crit ? 1.8 : 1), crit, true);
+      hitAny = true;
+    }
+  }
+  Audio.melee(hitAny);
+}
+function trySkill(i) {
+  const p = Game.player, s = p.skills[i];
+  if (s.cd > 0) return;
+  s.cd = s.cdMax;
+  if (i === 0) {
+    // adrenaline: speed + focus for 4s
+    s.buffT = 4;
+    Audio.ui();
+    toast("Adrenaline surges");
+    burst(p.x, 1.5, p.z, 12, 0.6, 0.9, 1, 3, 0.5, 0.05);
+  } else if (i === 1) {
+    // hellfire: AoE damage
+    Audio.shot();
+    Game.shake = Math.min(1, Game.shake + 0.6);
+    burst(p.x, 1.2, p.z, 40, 1, 0.5, 0.2, 6, 0.7, 0.1);
+    for (const e of Game.enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - p.x, e.z - p.z);
+      if (d < 4.5) damageEnemy(e, 30 + p.stats.str * 2, false, false);
+    }
+  } else if (i === 2) {
+    // mend
+    Audio.pickup();
+    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.4);
+    p.sanity = Math.min(p.maxSanity, p.sanity + p.maxSanity * 0.4);
+    burst(p.x, 1.5, p.z, 20, 0.4, 1, 0.5, 2, 0.8, 0.06);
+    toast("Mended");
+  }
+}
+
+/* ---------- enemy AI ---------- */
+function updateEnemies(dt) {
+  const p = Game.player;
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    e.hitFlash = Math.max(0, e.hitFlash - dt * 4);
+    e.bob += dt * 3;
+    const dx = p.x - e.x, dz = p.z - e.z;
+    const dist = Math.hypot(dx, dz);
+    e.stagger = Math.max(0, e.stagger - dt);
+    if (e.stagger > 0) { e.vx *= 0.8; e.vz *= 0.8; moveWithCollision(e, dt); continue; }
+
+    // state machine
+    if (dist < e.aggro) e.state = "chase";
+    else if (e.state === "chase" && dist > e.aggro * 1.5) e.state = "wander";
+
+    if (e.state === "wander") {
+      e.wanderT -= dt;
+      if (e.wanderT <= 0) { e.wanderDir = Math.random() * TAU; e.wanderT = 1 + Math.random() * 2; }
+      e.vx = sin(e.wanderDir) * e.speed * 0.4;
+      e.vz = cos(e.wanderDir) * e.speed * 0.4;
+    } else if (e.state === "chase") {
+      e.yaw = Math.atan2(dx, dz);
+      // boss enrage below 50%
+      let spd = e.speed, atkCd = e.attackCd, dmg = e.dmg;
+      if (e.kind === "boss" && e.hp < e.maxHp * 0.5) {
+        spd *= 1.4; atkCd *= 0.6; dmg *= 1.3;
+        e.tint = [1, 0.4, 0.3];
+      }
+      if (dist > e.attackRange) {
+        e.vx = (dx / dist) * spd;
+        e.vz = (dz / dist) * spd;
+      } else {
+        // attack
+        e.attackTimer -= dt;
+        e.vx *= 0.7; e.vz *= 0.7;
+        if (e.attackTimer <= 0 && dist < e.attackRange) {
+          e.attackTimer = atkCd;
+          damagePlayer(dmg, e);
+          Audio.grunt(e.kind);
+        }
+      }
+    }
+    moveWithCollision(e, dt);
+    // separation from other enemies
+    for (const o of Game.enemies) {
+      if (o === e || o.dead) continue;
+      const sx = e.x - o.x, sz = e.z - o.z;
+      const sd = Math.hypot(sx, sz);
+      if (sd < (e.r + o.r) && sd > 0) { e.x += (sx / sd) * 0.02; e.z += (sz / sd) * 0.02; }
+    }
+  }
+  Game.enemies = Game.enemies.filter(e => !e.dead);
+}
+
+/* ---------- projectiles ---------- */
+function updateProjectiles(dt) {
+  const p = Game.player;
+  for (const pr of Game.projectiles) {
+    pr.life -= dt;
+    const step = pr.speed * dt;
+    // substep for collision
+    const steps = Math.ceil(step / 0.2);
+    for (let s = 0; s < steps; s++) {
+      pr.x += pr.dx * step / steps;
+      pr.z += pr.dz * step / steps;
+      // wall
+      if (isSolid(pr.x, pr.z)) {
+        burst(pr.x, 1.5, pr.z, 8, 0.8, 0.6, 0.3, 2, 0.3, 0.05);
+        pr.life = 0; break;
+      }
+      if (pr.fromPlayer) {
+        for (const e of Game.enemies) {
+          if (e.dead || pr.hit.includes(e)) continue;
+          const d = Math.hypot(e.x - pr.x, e.z - pr.z);
+          if (d < e.r + 0.2) {
+            const crit = Math.random() < p.derived.critChance;
+            damageEnemy(e, pr.dmg * (crit ? 1.8 : 1), crit, false);
+            pr.hit.push(e);
+            if (!pr.pierce) { pr.life = 0; break; }
+          }
+        }
+      }
+    }
+    // tracer
+    if (pr.life > 0 && Math.random() < 0.5) spawnParticle(pr.x, 1.5, pr.z, 0, 0, 0, 1, 0.8, 0.4, 0.15, 0.04);
+  }
+  Game.projectiles = Game.projectiles.filter(pr => pr.life > 0);
+}
+
+/* ---------- pickups ---------- */
+function updatePickups(dt) {
+  const p = Game.player;
+  for (const pk of Game.pickups) {
+    if (pk.dead) continue;
+    pk.bob += dt * 2;
+    const d = Math.hypot(pk.x - p.x, pk.z - p.z);
+    if (d < 1.0) {
+      collectPickup(pk);
+      pk.dead = true;
+    }
+  }
+  Game.pickups = Game.pickups.filter(pk => !pk.dead);
+}
+function collectPickup(pk) {
+  const p = Game.player;
+  Audio.pickup();
+  if (pk.type === "health") { p.hp = Math.min(p.maxHp, p.hp + 30); toast("+30 Vigor"); spawnDmgText(pk.x, 1.5, pk.z, "+30", "heal"); }
+  else if (pk.type === "ammo") { p.weapon.reserve += 3; toast("+3 Rounds"); }
+  else if (pk.type === "light") { p.torch = 1; toast("Torch relit"); }
+  else if (pk.type === "sanity") { p.sanity = Math.min(p.maxSanity, p.sanity + 40); toast("+40 Sanity"); }
+  else if (pk.type === "gold") { Game.gold += pk.data.amt; toast("+" + pk.data.amt + " gold"); }
+  else if (pk.type === "loot") {
+    const it = pk.data;
+    p.inventory.push(it);
+    toast("Found: " + it.name + " (" + RARITIES[it.rarity].name + ")");
+    // auto-equip if empty slot
+    if (!p.equip[it.slot]) { p.equip[it.slot] = it; recomputeDerived(p); }
+  }
+}
+
+/* ---------- particles ---------- */
+function updateParticles(dt) {
+  for (const pt of Game.particles) {
+    pt.life -= dt;
+    pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.z += pt.vz * dt;
+    pt.vy -= 4 * dt;
+    pt.vx *= 0.96; pt.vz *= 0.96;
+  }
+  Game.particles = Game.particles.filter(pt => pt.life > 0);
+}
+
+/* ---------- floor transitions ---------- */
+function descendFloor() {
+  Game.floorNum++;
+  loadFloor(Game.floorNum);
+  const p = Game.player;
+  p.x = Game.floor.spawn.x; p.z = Game.floor.spawn.z;
+  p.yaw = 0;
+  toast("Floor " + roman(Game.floorNum) + " — " + FLOOR_NAMES[Game.floorNum - 1]);
+  Audio.ui();
+}
+function spawnBoss() {
+  const ex = Game.floor.exit;
+  const boss = makeEnemy("boss", ex.x, ex.z - 3, Game.floorNum);
+  Game.enemies.push(boss);
+  Game.boss = boss;
+  Audio.bossRoar();
+  Game.shake = 1;
+  toast("The Choir awakens");
+}
+
+/* ---------- load a floor ---------- */
+function loadFloor(num) {
+  const rng = makeRng((Game.seed ^ (num * 0x9e3779b9)) >>> 0);
+  const f = generateFloor(num, rng);
+  Game.floor = f;
+  Game.floorNum = num;
+  Game.enemies = [];
+  Game.projectiles = [];
+  Game.pickups = [];
+  Game.particles = [];
+  Game.boss = null;
+  // build world mesh
+  Renderer.setWorld(buildWorldMesh(f));
+  // spawn enemies in rooms (not spawn room)
+  const p = Game.player;
+  const enemyTypes = num === 1 ? ["wraith", "crawler"] : num === 2 ? ["wraith", "crawler", "brute"] : ["wraith", "brute", "crawler"];
+  const nEnemies = 5 + num * 3;
+  for (let i = 0; i < nEnemies; i++) {
+    const room = f.rooms[rng.int(1, f.rooms.length - 1)];
+    const ex = room.x + rng.int(0, room.w - 1) + .5, ez = room.z + rng.int(0, room.h - 1) + .5;
+    if (Math.hypot(ex - p.x, ez - p.z) < 6) continue;
+    Game.enemies.push(makeEnemy(rng.pick(enemyTypes), ex, ez, num));
+  }
+  // spawn pickups
+  const nPick = 4 + num * 2;
+  for (let i = 0; i < nPick; i++) {
+    const room = f.rooms[rng.int(0, f.rooms.length - 1)];
+    const ex = room.x + rng.int(0, room.w - 1) + .5, ez = room.z + rng.int(0, room.h - 1) + .5;
+    const r = rng();
+    if (r < 0.3) Game.pickups.push(makePickup("health", ex, ez, null));
+    else if (r < 0.55) Game.pickups.push(makePickup("ammo", ex, ez, null));
+    else if (r < 0.7) Game.pickups.push(makePickup("light", ex, ez, null));
+    else if (r < 0.85) Game.pickups.push(makePickup("gold", ex, ez, { amt: rng.int(5, 15 + num * 5) }));
+    else Game.pickups.push(makePickup("loot", ex, ez, genLoot(rng, num, p.derived.luck)));
+  }
+  // place player
+  p.x = f.spawn.x; p.z = f.spawn.z;
+  updateObjective();
+}
+
+/* ---------- build light list for renderer ---------- */
+function buildLights() {
+  const p = Game.player;
+  const L = [];
+  // player torch (main light)
+  const flick = 0.9 + Math.sin(Game.time * 8) * 0.05 + Math.sin(Game.time * 13) * 0.03;
+  const torchOn = p.torch > 0.05;
+  L.push({ x: p.x + sin(p.yaw) * 0.5, y: 1.6, z: p.z + cos(p.yaw) * 0.5, r: torchOn ? 9 * flick : 3, cr: 1, cg: 0.72, cb: 0.4, i: torchOn ? 1.4 : 0.4 });
+  // torch props
+  let torchCount = 0;
+  for (const pr of Game.floor.props) {
+    if (pr.type === "torch" && torchCount < 6) {
+      const d = Math.hypot(pr.x - p.x, pr.z - p.z);
+      if (d < 22) {
+        const fl = 0.85 + Math.sin(Game.time * 9 + pr.x * 3) * 0.1;
+        L.push({ x: pr.x, y: 1.5, z: pr.z, r: 5 * fl, cr: 1, cg: 0.6, cb: 0.3, i: 0.9 });
+        torchCount++;
+      }
+    }
+  }
+  // runes (cold light)
+  let runeCount = 0;
+  for (const pr of Game.floor.props) {
+    if (pr.type === "rune" && runeCount < 4) {
+      const d = Math.hypot(pr.x - p.x, pr.z - p.z);
+      if (d < 20) { L.push({ x: pr.x, y: 1.2, z: pr.z, r: 4, cr: 0.4, cg: 0.5, cb: 1, i: 0.7 }); runeCount++; }
+    }
+  }
+  // exit (stairs glow)
+  const ex = Game.floor.exit;
+  const exd = Math.hypot(ex.x - p.x, ex.z - p.z);
+  if (exd < 24) L.push({ x: ex.x, y: 1.5, z: ex.z, r: 6, cr: 0.5, cg: 0.6, cb: 1, i: 1.0 });
+  // boss (ominous)
+  if (Game.boss && !Game.boss.dead) L.push({ x: Game.boss.x, y: 1.5, z: Game.boss.z, r: 7, cr: 1, cg: 0.3, cb: 0.2, i: 1.2 });
+  // hellfire skill flash
+  if (p.skills[1].cd > p.skills[1].cdMax - 0.4) L.push({ x: p.x, y: 1.2, z: p.z, r: 8, cr: 1, cg: 0.5, cb: 0.2, i: 1.5 });
+  // cap
+  return L.slice(0, MAX_LIGHTS);
+}
+
+/* ---------- render one frame ---------- */
+function render() {
+  const p = Game.player;
+  if (!p) return;
+  const R = Renderer;
+  R.time = Game.time;
+  // camera with shake
+  const sh = Game.shake;
+  const shx = (Math.random() - 0.5) * sh * 0.15;
+  const shy = (Math.random() - 0.5) * sh * 0.15;
+  const eye = [p.x + shx, 1.6 + shy + Math.abs(Math.cos(Game.time * 2.2)) * (p.moving ? 0.04 : 0), p.z];
+  const fwd = [sin(p.yaw) * cos(p.pitch), sin(p.pitch), cos(p.yaw) * cos(p.pitch)];
+  const center = [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]];
+  m4lookAt(R.view, eye, center, [0, 1, 0]);
+  m4invert(R.viewInv, R.view);
+  R.setLights(buildLights());
+
+  R.beginScene();
+  R.drawWorld();
+  // build actor buffer (non-indexed geometry for drawArrays)
+  const out = [];
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    const geo = e.kind === "crawler" ? GEO.boxNI : GEO.icoNI;
+    const bobY = Math.sin(e.bob) * 0.08;
+    const tint = e.hitFlash > 0 ? [1, 0.4, 0.4] : e.tint;
+    pushActorMesh(geo, e.x, 0.6 + e.scale[1] * 0.5 + bobY, e.z, e.yaw, e.scale[0], e.scale[1], e.scale[2], e.tile, e.mat, tint, out);
+    // eyes (small emissive box)
+    pushActorMesh(GEO.boxNI, e.x + sin(e.yaw) * e.scale[0] * 0.5, 0.6 + e.scale[1] * 0.8 + bobY, e.z + cos(e.yaw) * e.scale[0] * 0.5, e.yaw, 0.12, 0.12, 0.12, T_TORCH, MAT.TORCH, [1, 0.3, 0.2], out);
+  }
+  for (const pk of Game.pickups) {
+    if (pk.dead) continue;
+    const geo = pk.geo === "cyl" ? GEO.cylNI : pk.geo === "ico" ? GEO.icoNI : GEO.boxNI;
+    const bobY = Math.sin(pk.bob) * 0.1 + 0.3;
+    pushActorMesh(geo, pk.x, bobY, pk.z, pk.bob, pk.scale[0], pk.scale[1], pk.scale[2], pk.tile, pk.mat, pk.tint, out);
+  }
+  for (const pr of Game.projectiles) {
+    if (pr.life <= 0) continue;
+    pushActorMesh(GEO.cylNI, pr.x, 1.5, pr.z, Math.atan2(pr.dx, pr.dz), 0.06, 0.5, 0.06, T_TORCH, MAT.PROJ, [1, 0.8, 0.4], out);
+  }
+  R.drawActors(out);
+  R.drawParticles(Game.particles);
+  R.drawViewmodel();
+  R.endScene();
+
+  // post
+  const sanity = clamp01(p.sanity / p.maxSanity);
+  const grain = 0.04 + (1 - sanity) * 0.06;
+  const vignette = 0.7 + (1 - sanity) * 0.3;
+  const exposure = 0.95 + p.torch * 0.1;
+  R.post(sanity, Game.damageFlash, grain, vignette, exposure);
+}
+
+/* ============================================================= *
+ *  UI / HUD
+ * ============================================================= */
+function showHud(on) { show($("hud"), on); }
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.style.opacity = "1";
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = "0"; }, 1800);
+}
+function updateObjective() {
+  const o = $("objective");
+  if (Game.floorNum >= 5) o.innerHTML = "Slay the <b>Choir</b>";
+  else o.innerHTML = "Descend to the <b>Choir</b> · Floor " + roman(Game.floorNum) + "/V";
+  $("floorplate").firstChild.textContent = "FLOOR " + roman(Game.floorNum);
+  $("floorsub").textContent = FLOOR_NAMES[Game.floorNum - 1];
+}
+function updateHUD() {
+  const p = Game.player;
+  if (!p) return;
+  $("hpfill").style.transform = "scaleX(" + clamp01(p.hp / p.maxHp) + ")";
+  $("hpval").textContent = Math.ceil(p.hp);
+  $("sanefill").style.transform = "scaleX(" + clamp01(p.sanity / p.maxSanity) + ")";
+  $("sanval").textContent = Math.ceil(p.sanity);
+  $("stafill").style.transform = "scaleX(" + clamp01(p.stamina / p.maxStamina) + ")";
+  $("staval").textContent = Math.ceil(p.stamina);
+  $("xpfill").style.transform = "scaleX(" + clamp01(p.xp / p.xpNext) + ")";
+  $("xpval").textContent = p.level;
+  $("torchfill").style.transform = "scaleX(" + clamp01(p.torch) + ")";
+  $("torchval").textContent = Math.round(p.torch * 100);
+  $("goldval").textContent = Game.gold + " gold";
+  $("seedval").textContent = Game.seed;
+  // ammo
+  const an = $("ammonum");
+  an.textContent = p.weapon.reloading > 0 ? "…" : p.weapon.ammo;
+  an.classList.toggle("empty", p.weapon.ammo === 0 && p.weapon.reloading <= 0);
+  $("ammosub").textContent = "reserve " + p.weapon.reserve;
+  // skills
+  for (let i = 0; i < 3; i++) {
+    const s = p.skills[i], e = $("sk" + i);
+    const cd = e.querySelector(".cd");
+    const frac = s.cd / s.cdMax;
+    cd.style.transform = "scaleY(" + frac + ")";
+    e.classList.toggle("ready", s.cd <= 0);
+  }
+  // damage flash + sanity overlay
+  $("flash").style.opacity = Game.damageFlash * 0.8;
+  $("sanityfx").style.opacity = (1 - clamp01(p.sanity / p.maxSanity)) * 0.5;
+  // aim indicator: crosshair turns red when an enemy is centered
+  const fwd = [sin(p.yaw), 0, cos(p.yaw)];
+  let aiming = false;
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    const dx = e.x - p.x, dz = e.z - p.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 14) {
+      const dot = (dx * fwd[0] + dz * fwd[2]) / dist;
+      const ang = Math.acos(clamp(dot, -1, 1));
+      if (ang < 0.06 + e.r / dist) { aiming = true; break; }
+    }
+  }
+  $("crosshair").classList.toggle("hit", aiming);
+  drawMinimap();
+}
+function drawMinimap() {
+  const cv = $("minimap"), ctx = cv.getContext("2d");
+  const p = Game.player, f = Game.floor;
+  const S = cv.width, scale = S / 20;
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(0, 0, S, S);
+  // tiles around player
+  const pcx = Math.floor(p.x), pcz = Math.floor(p.z);
+  for (let dz = -10; dz <= 10; dz++) for (let dx = -10; dx <= 10; dx++) {
+    const x = pcx + dx, z = pcz + dz;
+    if (x < 0 || z < 0 || x >= f.size || z >= f.size) continue;
+    const t = f.grid[z * f.size + x];
+    const sx = (dx) * scale + S / 2, sy = (dz) * scale + S / 2;
+    if (t === TILE_FLOOR) { ctx.fillStyle = "rgba(120,110,90,0.5)"; ctx.fillRect(sx, sy, scale, scale); }
+  }
+  // enemies
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    const sx = (e.x - p.x) * scale + S / 2, sy = (e.z - p.z) * scale + S / 2;
+    if (sx < 0 || sy < 0 || sx > S || sy > S) continue;
+    ctx.fillStyle = e.kind === "boss" ? "#ff5030" : "#c93636";
+    ctx.beginPath(); ctx.arc(sx, sy, e.kind === "boss" ? 4 : 2.5, 0, TAU); ctx.fill();
+  }
+  // exit
+  const ex = f.exit;
+  const esx = (ex.x - p.x) * scale + S / 2, esy = (ex.z - p.z) * scale + S / 2;
+  if (esx > 0 && esy > 0 && esx < S && esy < S) { ctx.fillStyle = "#4f8f9e"; ctx.fillRect(esx - 3, esy - 3, 6, 6); }
+  // player
+  ctx.save();
+  ctx.translate(S / 2, S / 2);
+  ctx.rotate(p.yaw);
+  ctx.fillStyle = "#f0b25e";
+  ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(3, 4); ctx.lineTo(-3, 4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- level up ---------- */
+function showLevelUp(choices) {
+  const box = $("lvupChoices");
+  box.innerHTML = "";
+  choices.forEach((c, i) => {
+    const d = el("div", "choice");
+    d.appendChild(el("div", "t", c.name));
+    d.appendChild(el("div", "d", c.desc));
+    d.onclick = () => {
+      c.apply(Game.player);
+      recomputeDerived(Game.player);
+      Audio.ui();
+      Game.pendingBoons = Math.max(0, (Game.pendingBoons || 1) - 1);
+      if (Game.pendingBoons > 0) {
+        offerBoon(); // queue next boon
+      } else {
+        $("levelup").classList.add("hidden");
+        Game.state = "playing";
+        requestLock();
+      }
+    };
+    box.appendChild(d);
+  });
+  $("levelup").classList.remove("hidden");
+}
+
+/* ---------- death / victory ---------- */
+function statRow(label, val) { const r = el("div", "statrow"); r.style.borderBottom = "none"; r.appendChild(el("span", "dim", label)); r.appendChild(el("span", "v", val)); return r; }
+function showDeathScreen() {
+  const box = $("deathStats");
+  box.innerHTML = "";
+  box.appendChild(statRow("Floor reached", roman(Game.floorNum) + " — " + FLOOR_NAMES[Game.floorNum - 1]));
+  box.appendChild(statRow("Level", Game.player.level));
+  box.appendChild(statRow("Kills", Game.kills));
+  box.appendChild(statRow("Gold", Game.gold));
+  box.appendChild(statRow("Time", Math.floor(Game.runTime / 60) + "m " + Math.floor(Game.runTime % 60) + "s"));
+  $("death").classList.remove("hidden");
+}
+function showVictoryScreen() {
+  const box = $("victoryStats");
+  box.innerHTML = "";
+  box.appendChild(statRow("Final level", Game.player.level));
+  box.appendChild(statRow("Total kills", Game.kills));
+  box.appendChild(statRow("Gold amassed", Game.gold));
+  box.appendChild(statRow("Time to silence", Math.floor(Game.runTime / 60) + "m " + Math.floor(Game.runTime % 60) + "s"));
+  $("victory").classList.remove("hidden");
+}
+
+/* ---------- inventory / character modal ---------- */
+function openModal(kind) {
+  Game.state = "paused";
+  document.exitPointerLock && document.exitPointerLock();
+  const modal = $("modal");
+  modal.classList.remove("hidden");
+  modal.innerHTML = "";
+  const panel = el("div", "panel");
+  const head = el("div", "mhead");
+  head.appendChild(el("h2", "serif", kind === "inv" ? "Inventory" : "Character"));
+  const close = el("span", "mclose", "✕");
+  close.onclick = closeModal;
+  head.appendChild(close);
+  panel.appendChild(head);
+
+  if (kind === "inv") {
+    const p = Game.player;
+    // equipment
+    const eq = el("div", "equipcol");
+    eq.appendChild(el("div", "tiny caps dim", "Equipment"));
+    const slots = [["weapon", "⚔", "Weapon"], ["armor", "🛡", "Armor"], ["ring1", "💍", "Ring I"], ["ring2", "💍", "Ring II"]];
+    for (const [slot, ico, label] of slots) {
+      const it = p.equip[slot];
+      const s = el("div", "eqslot");
+      s.appendChild(el("div", "g", ico));
+      const info = el("div", "info");
+      info.appendChild(el("div", "n", it ? it.name : "— " + label + " —"));
+      info.appendChild(el("div", "s", it ? RARITIES[it.rarity].name + " · " + describeItem(it) : "empty"));
+      s.appendChild(info);
+      if (it) { s.title = "Click to unequip"; s.onclick = () => { p.equip[slot] = null; p.inventory.push(it); recomputeDerived(p); openModal("inv"); Audio.ui(); }; }
+      eq.appendChild(s);
+    }
+    panel.appendChild(eq);
+    panel.appendChild(el("div", "sep"));
+    // inventory grid
+    const grid = el("div", "grid");
+    if (p.inventory.length === 0) grid.appendChild(el("div", "dim sm", "No relics yet. Carve some from the dead."));
+    p.inventory.forEach((it, idx) => {
+      const s = el("div", "slot r" + it.rarity);
+      s.appendChild(el("div", "g", it.kind === "weapon" ? "⚔" : it.kind === "armor" ? "🛡" : "💍"));
+      s.appendChild(el("div", "n", it.name));
+      s.title = it.name + " (" + RARITIES[it.rarity].name + ")\n" + describeItem(it) + "\nClick to equip";
+      s.onclick = () => {
+        const old = p.equip[it.slot];
+        p.equip[it.slot] = it;
+        p.inventory.splice(idx, 1);
+        if (old) p.inventory.push(old);
+        recomputeDerived(p);
+        Audio.ui();
+        openModal("inv");
+      };
+      grid.appendChild(s);
+    });
+    panel.appendChild(grid);
+  } else {
+    const p = Game.player;
+    const d = p.derived;
+    const rows = [
+      ["Level", p.level],
+      ["XP", Math.floor(p.xp) + " / " + p.xpNext],
+      ["Strength", d.str],
+      ["Vitality", d.vit],
+      ["Agility", d.agi],
+      ["Intelligence", d.int],
+      ["Luck", d.luck],
+      ["Max Vigor", d.maxHp],
+      ["Max Sanity", d.maxSanity],
+      ["Move Speed", d.moveSpeed.toFixed(1)],
+      ["Melee Damage", Math.round(d.meleeDmg)],
+      ["Crit Chance", Math.round(d.critChance * 100) + "%"],
+      ["Damage Reduction", Math.round(d.dmgReduction * 100) + "%"],
+    ];
+    for (const [k, v] of rows) {
+      const r = el("div", "statrow");
+      r.appendChild(el("span", "dim", k));
+      r.appendChild(el("span", "v", String(v)));
+      panel.appendChild(r);
+    }
+    panel.appendChild(el("div", "sep"));
+    panel.appendChild(el("div", "tiny caps dim", "Skills"));
+    for (const s of p.skills) {
+      const r = el("div", "statrow");
+      r.appendChild(el("span", "", s.ico + " " + s.name));
+      r.appendChild(el("span", "v", s.desc));
+      panel.appendChild(r);
+    }
+  }
+  modal.appendChild(panel);
+}
+function closeModal() {
+  $("modal").classList.add("hidden");
+  $("modal").innerHTML = "";
+  Game.state = "playing";
+  requestLock();
+}
+function describeItem(it) {
+  const parts = [];
+  if (it.dmg) parts.push(it.dmg + " dmg");
+  if (it.armor) parts.push(it.armor + " armor");
+  if (it.pierce) parts.push("pierces");
+  if (it.bonus) for (const k in it.bonus) parts.push("+" + it.bonus[k] + " " + k);
+  return parts.join(" · ");
+}
+
+/* ============================================================= *
+ *  INPUT + MAIN LOOP + BOOTSTRAP
+ * ============================================================= */
+function requestLock() {
+  const c = Renderer.canvas;
+  if (c.requestPointerLock) {
+    const p = c.requestPointerLock();
+    if (p && p.catch) p.catch(() => {});
+  }
+}
+function setupInput() {
+  const canvas = Renderer.canvas;
+  document.addEventListener("keydown", e => {
+    if (e.repeat) return;
+    Input.keys[e.code] = true;
+    if (Game.state === "playing") {
+      if (e.code === "KeyI") { e.preventDefault(); openModal("inv"); }
+      else if (e.code === "KeyC") { e.preventDefault(); openModal("char"); }
+      else if (e.code === "Escape" || e.code === "KeyP") { e.preventDefault(); pauseGame(); }
+    } else if (Game.state === "paused") {
+      if (e.code === "Escape" || e.code === "KeyP") { e.preventDefault(); resumeGame(); }
+    }
+  });
+  document.addEventListener("keyup", e => { Input.keys[e.code] = false; });
+  document.addEventListener("mousemove", e => {
+    if (document.pointerLockElement === canvas) {
+      Input.mouse.dx += e.movementX;
+      Input.mouse.dy += e.movementY;
+    }
+  });
+  document.addEventListener("mousedown", e => {
+    if (document.pointerLockElement !== canvas) return;
+    if (e.button === 0) Input.mouse.left = true;
+    else if (e.button === 2) Input.mouse.right = true;
+  });
+  document.addEventListener("contextmenu", e => { if (document.pointerLockElement === canvas) e.preventDefault(); });
+  document.addEventListener("pointerlockchange", () => {
+    Input.locked = document.pointerLockElement === canvas;
+    if (!Input.locked && Game.state === "playing") pauseGame();
+  });
+  window.addEventListener("resize", () => Renderer.resize());
+}
+function pauseGame() {
+  if (Game.state !== "playing") return;
+  Game.state = "paused";
+  $("pause").classList.remove("hidden");
+  document.exitPointerLock && document.exitPointerLock();
+}
+function resumeGame() {
+  if (Game.state !== "paused") return;
+  Game.state = "playing";
+  $("pause").classList.add("hidden");
+  requestLock();
+}
+
+/* ---------- run lifecycle ---------- */
+function startRun() {
+  Game.seed = randomSeedWord();
+  Game.rng = makeRng(Game.seed);
+  Game.kills = 0;
+  Game.gold = 0;
+  Game.runTime = 0;
+  Game.player = makePlayer(0, 0);
+  recomputeDerived(Game.player);
+  Game.player.hp = Game.player.maxHp;
+  Game.player.sanity = Game.player.maxSanity;
+  Game.player.stamina = Game.player.maxStamina;
+  loadFloor(1);
+  Game.state = "playing";
+  showHud(true);
+  $$(".screen").forEach(s => s.classList.add("hidden"));
+  Audio.init();
+  Audio.resume();
+  Audio.startAmbient();
+  requestLock();
+  toast("Floor I — " + FLOOR_NAMES[0]);
+}
+
+/* ---------- main loop ---------- */
+let lastT = 0;
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- wire UI ---------- */
+function wireUI() {
+  $("btnStart").onclick = () => { Audio.ui(); startRun(); };
+  $("btnHelp").onclick = () => { Audio.ui(); $("title").classList.add("hidden"); $("help").classList.remove("hidden"); };
+  $("helpClose").onclick = () => { Audio.ui(); $("help").classList.add("hidden"); $("title").classList.remove("hidden"); };
+  $("helpBack").onclick = () => { Audio.ui(); $("help").classList.add("hidden"); $("title").classList.remove("hidden"); };
+  $("btnResume").onclick = () => { Audio.ui(); resumeGame(); };
+  $("btnRestart").onclick = () => { Audio.ui(); startRun(); };
+  $("btnDeathRetry").onclick = () => { Audio.ui(); startRun(); };
+  $("btnVictoryRetry").onclick = () => { Audio.ui(); startRun(); };
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  try {
+    Renderer.init($("gl"));
+    wireUI();
+    setupInput();
+    // idle background: render a static dark frame so the canvas isn't black
+    Game.player = makePlayer(0, 0);
+    recomputeDerived(Game.player);
+    Game.floor = generateFloor(1, makeRng(1));
+    Renderer.setWorld(buildWorldMesh(Game.floor));
+    Game.player.x = Game.floor.spawn.x; Game.player.z = Game.floor.spawn.z;
+    lastT = performance.now();
+    requestAnimationFrame(frame);
+  } catch (e) {
+    reportErr("boot", e);
+  }
+}
+window.addEventListener("load", boot);
+</script>
+</body>
+</html>
+</script>
+</body>
+</html>
