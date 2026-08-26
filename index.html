@@ -745,7 +745,7 @@ function texFromData(w, h, u8, opts) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, o.mirror ? gl.MIRRORED_REPEAT : gl.REPEAT);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, o.mirror ? gl.MIRRORED_REPEAT : gl.REPEAT);
-  gl.generateMipmap();
+  gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   return t;
 }
